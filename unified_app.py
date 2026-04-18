@@ -426,7 +426,6 @@ if page == "\U0001f50d FARK Scanner":
         'Marj%':        round(r['marj'],1) if r.get('marj') else None,
         'Buyume%':      round(r.get('buyume',0),0) if r.get('buyume') is not None else None,
         'ROE 30+D':     roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0],
-        'ROE Hic':      '\u2714' if roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[1] else '',
     } for r in goster])
 
     edited = st.data_editor(tablo, column_config={
@@ -557,7 +556,6 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
         'Fiyat Geride':      '\u2705' if r.get('fiyat_geride') else '\u274c',
         'ROE%':              round(r['roe'],1) if r.get('roe') else None,
         'ROE 30+D':          roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0],
-        'ROE Hic':           '\u2714' if roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[1] else '',
         'Piy.Degeri':        fmt_milyon(r.get('pd_val')),
     } for r in goster])
 
@@ -576,7 +574,6 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
         'Fiyat Geride':      st.column_config.TextColumn('Fiyat Geride?',width='small'),
         'ROE%':              st.column_config.NumberColumn('ROE%',width='small',format='%.1f'),
         'ROE 30+D':          st.column_config.NumberColumn('ROE 30+D',width='small',format='%d'),
-        'ROE Hic':           st.column_config.TextColumn('ROE Hic',width='small'),
         'Piy.Degeri':        st.column_config.TextColumn('Piy.Degeri',width='small'),
     }, disabled=[c for c in tablo.columns if c!='\u2b50'],
     hide_index=True, use_container_width=True,
@@ -1018,50 +1015,48 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     toplam_donem = len(engine.sorted_donems)
 
-    # ── Degerleme Tablosu — tek satirda tum metrikler ──────────────────────────
+    # ── Degerleme Tablosu — HTML flex ile yatay ──────────────────────────────
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
                 "\U0001f4ca Degerleme Pozisyonu</h3>", unsafe_allow_html=True)
 
     METRIK_ACIK = {
-        'FK/PD%':   'EFK / PD — yuksek = ucuz',
-        'PD/DD':    'PD / Defter — dusuk = deger alti',
-        'F/K':      'Fiyat / Kazanc — dusuk = ucuz',
-        'ROE%':     'Ozsermaye karliligi — yuksek = verimli',
-        'Marj%':    'Faaliyet marji — yuksek = kaliteli',
-        'Piotroski':'Finansal saglik 0-9 — 7+ = guclu',
+        'FK/PD%':   'EFK/PD - yuksek=ucuz',
+        'PD/DD':    'Dusuk=deger alti',
+        'F/K':      'Dusuk=ucuz',
+        'ROE%':     'Yuksek=verimli',
+        'Marj%':    'Yuksek=kaliteli',
+        'Piotroski':'7+=saglikli',
     }
 
-    cols = st.columns(len(deger_kart))
-    for m, col in zip(deger_kart, cols):
+    kartlar_html = "<div style='display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap'>"
+    for m in deger_kart:
         if m["durum"] == "veri_yok":
-            renk, bg, brd = "#475569", "#0D1926", "#1E3448"
-            ico = "-"
+            renk, bg, brd, ico = "#475569", "#0D1926", "#1E3448", ""
         elif m["durum"] == "iyi":
-            renk, bg, brd = "#4ADE80", "#071A0F", "#166534"
-            ico = "\u2191"
+            renk, bg, brd, ico = "#4ADE80", "#071A0F", "#166534", "\u2191"
         else:
-            renk, bg, brd = "#F87171", "#1A0707", "#7F1D1D"
-            ico = "\u2193"
+            renk, bg, brd, ico = "#F87171", "#1A0707", "#7F1D1D", "\u2193"
 
         hisse_fmt  = f"{m['hisse']:.1f}"  if m["hisse"]  is not None else "-"
         sektor_fmt = f"{m['sektor']:.1f}" if m["sektor"] is not None else "-"
-        fark_fmt   = f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ""
-        tip        = METRIK_ACIK.get(m["isim"], "")
+        fark_fmt   = f"{ico}{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ico
+        tip = METRIK_ACIK.get(m["isim"], "")
 
-        col.markdown(
-            f"<div style='background:{bg};border:1px solid {brd};border-radius:10px;"
-            f"padding:10px 8px;text-align:center;height:100%'>"
-            f"<div style='font-size:9px;color:#475569;text-transform:uppercase;"
-            f"letter-spacing:1px;margin-bottom:6px'>{m['isim']}</div>"
-            f"<div style='font-size:22px;font-weight:900;color:{renk};line-height:1'>{hisse_fmt}</div>"
-            f"<div style='font-size:9px;color:{renk};margin:3px 0'>{ico} {fark_fmt}</div>"
-            f"<div style='border-top:1px solid {brd};margin:5px 0;padding-top:5px'>"
-            f"<div style='font-size:9px;color:#334155'>Sektor</div>"
-            f"<div style='font-size:14px;font-weight:700;color:#64748B'>{sektor_fmt}</div></div>"
-            f"<div style='font-size:8px;color:#1E3448;margin-top:4px'>{tip}</div>"
-            f"</div>",
-            unsafe_allow_html=True
+        kartlar_html += (
+            f"<div style='flex:1;min-width:80px;background:{bg};border:1px solid {brd};"
+            f"border-radius:10px;padding:10px 6px;text-align:center'>"
+            f"<div style='font-size:8px;color:#475569;text-transform:uppercase;"
+            f"letter-spacing:1px;margin-bottom:5px'>{m['isim']}</div>"
+            f"<div style='font-size:20px;font-weight:900;color:{renk};line-height:1.1'>{hisse_fmt}</div>"
+            f"<div style='font-size:9px;color:{renk};margin:3px 0'>{fark_fmt}</div>"
+            f"<div style='border-top:1px solid {brd};margin:5px 0 3px;padding-top:4px'>"
+            f"<div style='font-size:11px;font-weight:700;color:#64748B'>{sektor_fmt}</div>"
+            f"<div style='font-size:7px;color:#334155'>sektor</div></div>"
+            f"<div style='font-size:7px;color:#1E3448'>{tip}</div>"
+            f"</div>"
         )
+    kartlar_html += "</div>"
+    st.markdown(kartlar_html, unsafe_allow_html=True)
 
     # Kac metrikte iyi
     iyi_say = sum(1 for m in deger_kart if m["durum"]=="iyi")
