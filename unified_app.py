@@ -159,7 +159,7 @@ KARAR_RENK = {'GUCLU ADAY':'#4ADE80','POTANSIYEL':'#FCD34D','ZAYIF':'#FB923C','E
 # ── SIDEBAR ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<div class='sb-brand'>BIST <span>ANALiZ</span></div>", unsafe_allow_html=True)
-    st.markdown("<div class='sb-sub'>FARK · GERI · KESISIM</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sb-sub'>FARK · GERI · BEBEK · KESISIM</div>", unsafe_allow_html=True)
 
     page = st.radio("", [
         "\U0001f50d FARK Scanner",
@@ -280,7 +280,7 @@ def veri_yukle_widget():
                     st.markdown(f"<p style='color:#38BDF8;font-size:13px;margin-top:8px'>"
                                 f"\U0001f4ce {len(uploaded)} dosya secildi</p>", unsafe_allow_html=True)
                 with c2:
-                    if st.button("\U0001f680 Taramayi Baslat", type="primary", use_container_width=True, key="baslat_btn"):
+                    if st.button("\U0001f680 Taramayi Baslat", type="primary", use_container_width=True, key="baslat_btn_v2"):
                         with st.spinner("Analiz ediliyor..."):
                             quarters, hatalar = {}, []
                             # Mevcut quarters'i koru (ek donem ekleme)
@@ -308,7 +308,7 @@ def veri_yukle_widget():
                                 st.error("Hicbir dosya yuklenemedi")
                                 for h in hatalar: st.warning(h)
                 with c3:
-                    if st.button("\U0001f5d1\ufe0f Temizle", use_container_width=True, key="temizle_btn",
+                    if st.button("\U0001f5d1\ufe0f Temizle", use_container_width=True, key="temizle_btn_v2",
                                   help="Secili tum dosyalari kaldir"):
                         st.session_state.xlsx_key += 1
                         st.rerun()
@@ -389,7 +389,7 @@ if page == "\U0001f50d FARK Scanner":
     arama_col2, bos2 = st.columns([1.5, 4.5])
     with arama_col2:
         arama_fark = st.text_input("\U0001f50d Hisse Ara", placeholder="Kod ara...",
-                                    label_visibility="collapsed", key="fark_ara")
+                                    label_visibility="collapsed", key="fark_ara_v2")
 
     c1,c2,c3,c4 = st.columns([1.5,2,1.5,1])
     with c1:
@@ -510,7 +510,7 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
     arama_col3, bos3 = st.columns([1.5, 4.5])
     with arama_col3:
         arama_geri = st.text_input("\U0001f50d Hisse Ara", placeholder="Kod ara...",
-                                    label_visibility="collapsed", key="geri_ara")
+                                    label_visibility="collapsed", key="geri_ara_v2")
 
     c1,c2,c3,c4 = st.columns([1.5,2,1.5,1.5])
     with c1:
@@ -1018,60 +1018,50 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     toplam_donem = len(engine.sorted_donems)
 
-    # ── Degerleme Karti (2'li satir) ─────────────────────────────────────────
+    # ── Degerleme Tablosu — tek satirda tum metrikler ──────────────────────────
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
-                "\U0001f4ca Degerleme Pozisyonu — Hisse vs Sektor Medyani</h3>",
-                unsafe_allow_html=True)
+                "\U0001f4ca Degerleme Pozisyonu</h3>", unsafe_allow_html=True)
 
     METRIK_ACIK = {
-        'FK/PD%':    'EFK / PD — yuksek = ucuz',
-        'PD/DD':     'Piyasa / Defter — dusuk = deger alti',
-        'F/K':       'Fiyat / Kazanc — dusuk = ucuz',
-        'ROE%':      'Ozsermaye karliligi — yuksek = verimli',
-        'Marj%':     'Faaliyet marji — yuksek = kaliteli',
-        'Piotroski':  'Finansal saglik 0-9 — 7+ = guclu',
-        'VAFOK Mj':  'VAFOK marji — yuksek = nakit guclu',
+        'FK/PD%':   'EFK / PD — yuksek = ucuz',
+        'PD/DD':    'PD / Defter — dusuk = deger alti',
+        'F/K':      'Fiyat / Kazanc — dusuk = ucuz',
+        'ROE%':     'Ozsermaye karliligi — yuksek = verimli',
+        'Marj%':    'Faaliyet marji — yuksek = kaliteli',
+        'Piotroski':'Finansal saglik 0-9 — 7+ = guclu',
     }
-    # 2'li satirlar halinde goster
-    for satir_idx in range(0, len(deger_kart), 3):
-      satir = deger_kart[satir_idx:satir_idx+3]
-      cols = st.columns(3)
-      for i,(m,col) in enumerate(zip(satir,cols)):
-          if m["durum"] == "veri_yok":
-              renk,ico,bg,brd = "#475569","-","#0D1926","#1E3448"
-          elif m["durum"] == "iyi":
-              renk,ico,bg,brd = "#4ADE80","\u2191","#0A1C0F","#166534"
-          else:
-              renk,ico,bg,brd = "#F87171","\u2193","#1C0A0A","#7F1D1D"
 
-          hisse_fmt  = f"{m['hisse']:.1f}"   if m["hisse"]  is not None else "-"
-          sektor_fmt = f"{m['sektor']:.1f}"  if m["sektor"] is not None else "-"
-          fark_fmt   = f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ""
-          aciklama   = METRIK_ACIK.get(m["isim"], "")
-          if m["durum"] == "iyi":
-              kiyasla = "Sek. ort. \u00fcstunde \u2713" if m["yuksek_iyi"] else "Sek. ort. altinda \u2713"
-          elif m["durum"] == "kotu":
-              kiyasla = "Sek. ort. altinda" if m["yuksek_iyi"] else "Sek. ort. \u00fcstunde"
-          else:
-              kiyasla = ""
+    cols = st.columns(len(deger_kart))
+    for m, col in zip(deger_kart, cols):
+        if m["durum"] == "veri_yok":
+            renk, bg, brd = "#475569", "#0D1926", "#1E3448"
+            ico = "-"
+        elif m["durum"] == "iyi":
+            renk, bg, brd = "#4ADE80", "#071A0F", "#166534"
+            ico = "\u2191"
+        else:
+            renk, bg, brd = "#F87171", "#1A0707", "#7F1D1D"
+            ico = "\u2193"
 
-          col.markdown(
-              "<div style='background:" + bg + ";border:1px solid " + brd + ";"
-              "border-radius:8px;padding:12px 10px;'>"
-              "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:6px'>"
-              "<span style='font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:1px'>" + m["isim"] + "</span>"
-              "<span style='font-size:9px;color:" + renk + "'>" + kiyasla + "</span></div>"
-              "<div style='display:flex;justify-content:space-between;align-items:flex-end'>"
-              "<div><div style='font-size:24px;font-weight:900;color:" + renk + ";line-height:1'>" + hisse_fmt + "</div>"
-              "<div style='font-size:9px;color:#475569;margin-top:2px'>" + aciklama + "</div></div>"
-              "<div style='text-align:right'>"
-              "<div style='font-size:11px;color:#475569'>Sektor</div>"
-              "<div style='font-size:16px;font-weight:700;color:#64748B'>" + sektor_fmt + "</div>"
-              "<div style='font-size:10px;font-weight:700;color:" + renk + "'>" + ico + fark_fmt + "</div>"
-              "</div></div>"
-              "</div>",
-              unsafe_allow_html=True
-          )
+        hisse_fmt  = f"{m['hisse']:.1f}"  if m["hisse"]  is not None else "-"
+        sektor_fmt = f"{m['sektor']:.1f}" if m["sektor"] is not None else "-"
+        fark_fmt   = f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ""
+        tip        = METRIK_ACIK.get(m["isim"], "")
+
+        col.markdown(
+            f"<div style='background:{bg};border:1px solid {brd};border-radius:10px;"
+            f"padding:10px 8px;text-align:center;height:100%'>"
+            f"<div style='font-size:9px;color:#475569;text-transform:uppercase;"
+            f"letter-spacing:1px;margin-bottom:6px'>{m['isim']}</div>"
+            f"<div style='font-size:22px;font-weight:900;color:{renk};line-height:1'>{hisse_fmt}</div>"
+            f"<div style='font-size:9px;color:{renk};margin:3px 0'>{ico} {fark_fmt}</div>"
+            f"<div style='border-top:1px solid {brd};margin:5px 0;padding-top:5px'>"
+            f"<div style='font-size:9px;color:#334155'>Sektor</div>"
+            f"<div style='font-size:14px;font-weight:700;color:#64748B'>{sektor_fmt}</div></div>"
+            f"<div style='font-size:8px;color:#1E3448;margin-top:4px'>{tip}</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
     # Kac metrikte iyi
     iyi_say = sum(1 for m in deger_kart if m["durum"]=="iyi")
@@ -1143,7 +1133,7 @@ elif page == "\U0001f4ca Detay Analizi":
 
     col1, col2 = st.columns(2)
     with col1:
-        n1 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_efk",
+        n1 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_efk_v2",
                         format="%d donem", label_visibility="collapsed")
         d1 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n1:]]
         efk_h = [s for s in efk_h_tum if s['donem'] in d1]
@@ -1153,7 +1143,7 @@ elif page == "\U0001f4ca Detay Analizi":
         st.plotly_chart(cizgi_grafik(
             "Esas Faaliyet Kari (Milyon TL)", efk_h, efk_s, "M"), use_container_width=True)
     with col2:
-        n2 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_pd",
+        n2 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_pd_v2",
                         format="%d donem", label_visibility="collapsed")
         d2 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n2:]]
         pd_h_tum = da.pd_seri()
@@ -1167,14 +1157,14 @@ elif page == "\U0001f4ca Detay Analizi":
 
     col3, col4 = st.columns(2)
     with col3:
-        n3 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_pddd",
+        n3 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_pddd_v2",
                         format="%d donem", label_visibility="collapsed")
         d3 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n3:]]
         pddd_h = [s for s in da.hisse_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in d3]
         pddd_s = [s for s in da.sektor_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in d3]
         st.plotly_chart(cizgi_grafik("PD/DD Trendi", pddd_h, pddd_s), use_container_width=True)
     with col4:
-        n4 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_ns",
+        n4 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_ns_v2",
                         format="%d donem", label_visibility="collapsed")
         d4 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n4:]]
         ns_h = [s for s in da.hisse_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)") if s['donem'] in d4]
@@ -1188,7 +1178,7 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:8px\">"
                 "\U0001f4c8 ROE% Trendi \u2014 %30 Esigi</h3>", unsafe_allow_html=True)
-    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe_detay",
+    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe_v2",
                       format="%d donem", label_visibility="collapsed")
     d_roe = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n_roe:]]
     roe_h_tum = da.hisse_seri(C_ROE)
@@ -1239,7 +1229,7 @@ elif page == "\U0001f4ca Detay Analizi":
                 "Mavi cizgi sarin uzegindeyse fiyat geri kalmis demektir.</p>",
                 unsafe_allow_html=True)
 
-    n5 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_idx",
+    n5 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_idx_v2",
                     format="%d donem", label_visibility="collapsed")
     d5 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n5:]]
     efk_raw = [s for s in da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)") if s['donem'] in d5]
@@ -1314,7 +1304,7 @@ elif page == "\U0001f4ca Detay Analizi":
                     "Ilk pozitif degerden son degere buyume. GXSMODUJ varlik analizi cercevesi.</p>",
                     unsafe_allow_html=True)
     with kat_c2:
-        kat_n = st.slider("", 2, toplam_donem, toplam_donem, key="sl_kat",
+        kat_n = st.slider("", 2, toplam_donem, toplam_donem, key="sl_kat_v2",
                            format="%d donem", label_visibility="collapsed")
 
     # Engine'i secili donem araligina gore yeniden olustur
@@ -1528,7 +1518,7 @@ elif page == "\U0001f4da Metodoloji":
     <div class='ph-sub'>FARK + GERI + KESISIM metodolojisi · GXSMODUJ uzantisi</div>
     </div>""", unsafe_allow_html=True)
 
-    tab1,tab2,tab3,tab4 = st.tabs(["FARK Sistemi","GERI Sistemi","Kesisim","Kullanim"])
+    tab1,tab2,tab3,tab4,tab5 = st.tabs(["FARK","GERI","Bebek Hisse","ROE Istikrari","Kullanim"])
 
     with tab1:
         st.markdown("""<div style='background:#0D1926;border-left:3px solid #38BDF8;
@@ -1570,22 +1560,61 @@ elif page == "\U0001f4da Metodoloji":
                     unsafe_allow_html=True)
 
     with tab3:
-        st.markdown("""<div style='background:#0A1C0F;border:1px solid #166534;
-        border-radius:10px;padding:18px 22px;margin-bottom:16px'>
-        <b style='color:#4ADE80;font-size:16px'>Neden Kesisim En Guclu Sinyal?</b><br><br>
-        <p style='color:#94A3B8;font-size:13px'>FARK sistemi operasyonel saglik ve buyumeyi olcer.
-        GERI sistemi fiyat/deger uyumsuzlugunu olcer. Ikisinden birden gecen hisse hem
-        operasyonel saglikli hem de piyasanin geriden fiyatlaniyor demektir.</p>
+        st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
+        border-radius:10px;padding:14px 18px;margin-bottom:10px'>
+        <b style='color:#4ADE80'>GXSMODUJ Tanimi</b>
+        <p style='color:#94A3B8;font-size:12px;margin:6px 0 0'>Mevcutta cussesi kucuk ama
+        kaldiraclari buyuk hisselerdir. Minimum 10 katlik potansiyeli olmalidir.</p>
         </div>""", unsafe_allow_html=True)
-        st.markdown("""
-| Sistem | Ne Olcer | Gecis Kriteri |
-|--------|----------|---------------|
-| FARK | Operasyonel Saglik | F1-F4 filtreleri |
-| GERI | Fiyat/Deger Uyumu | F/K<30, PD/DD<5, EFK>0 |
-| KESISIM | Her Ikisi | Her iki sistemden gec |
-        """)
+        for hrf,baslik,aciklama in [
+            ("A","Kucuk Cusse (25p)","Ozkaynak < 500M: 25p · < 2Mr: 18p · < 10Mr: 10p"),
+            ("B","Kaldirac (30p)","Yuksek marj + Yuksek ROE + Yuksek FK/PD%"),
+            ("C","Degerlenmemis Varlik (20p)","PD/DD < 1 + Maddi duran varlik / PD"),
+            ("D","Finansal Saglik (15p)","Piotroski F Skor + Cari Oran + FAVOK/Fin.Gider"),
+            ("E","Buyume (10p)","Ozsermaye buyumesi + Aktif buyume + Net nakit"),
+        ]:
+            st.markdown(f"""<div style='background:#0D1926;border:1px solid #0F2040;
+            border-radius:8px;padding:10px 14px;margin-bottom:5px'>
+            <b style='color:#4ADE80'>{hrf}</b>
+            <b style='color:#E2E8F0;margin-left:8px'>{baslik}</b>
+            <p style='color:#475569;font-size:12px;margin:3px 0 0'>{aciklama}</p>
+            </div>""", unsafe_allow_html=True)
+        st.markdown("""<div style='background:#0D1926;border:1px solid #FCD34D;
+        border-radius:8px;padding:10px 14px;margin-top:8px'>
+        <b style='color:#FCD34D'>10x Potansiyel</b>
+        <p style='color:#475569;font-size:12px;margin:4px 0 0'>
+        Hedef PD = min(EFK x 15, Ozkaynak x 3) / Mevcut PD.
+        Backtesting ortalaması 23.6x getiri, %4 zarar.</p>
+        </div>""", unsafe_allow_html=True)
 
     with tab4:
+        st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
+        border-radius:10px;padding:14px 18px;margin-bottom:10px'>
+        <b style='color:#4ADE80'>GXSMODUJ Pirlanta Formulu</b>
+        <p style='color:#94A3B8;font-size:12px;margin:6px 0 0'>Surdurulebilir buyume orani ve ROE
+        istikrari analizi yapanin biri bin olur.</p>
+        </div>""", unsafe_allow_html=True)
+        for durum,gosterge,aksiyon,renk in [
+            ("ROE %30'u ilk kez geci","ROE 30+D = 1-2","Erken giris sinyali","#38BDF8"),
+            ("ROE %30 istikrarli","ROE 30+D >= 4","Guclu sinyal","#4ADE80"),
+            ("ROE hic %30 altina dusmedi","Tum tarih > %30","Pirlanta — Tut!","#FCD34D"),
+            ("ROE %30 altina dustü","Trend kirildi","Dikkatli ol","#F87171"),
+        ]:
+            st.markdown(f"""<div style='background:#0D1926;border-left:3px solid {renk};
+            border-radius:6px;padding:10px 14px;margin-bottom:6px;display:flex;gap:12px'>
+            <div style='flex:1'><b style='color:{renk}'>{durum}</b>
+            <br><span style='color:#475569;font-size:11px'>{gosterge}</span></div>
+            <div style='color:#E2E8F0;font-size:11px;text-align:right'>{aksiyon}</div>
+            </div>""", unsafe_allow_html=True)
+        st.markdown("""<div style='background:#0D1926;border:1px solid #0F2040;
+        border-radius:8px;padding:12px 16px;margin-top:8px'>
+        <b style='color:#E2E8F0'>ROE 30+D Kolonu</b>
+        <p style='color:#475569;font-size:12px;margin:4px 0 0'>FARK ve GERI tablolarinda
+        son kac donem ust uste ROE %30 ustunde oldugu gosterilir.
+        Detay Analizi ROE grafiginde %30 esigi cizgisiyle trend izlenir.</p>
+        </div>""", unsafe_allow_html=True)
+
+    with tab5:
         adimlar = [
             ("1","\U0001f4ca","Fastweb Kartini Ayarla",
              "13 kolonu secip kaydet: EFK, PD, PD/DD, Marj, Bor/OK, Nakit, NK, "
