@@ -6,7 +6,7 @@ import io
 from datetime import datetime
 
 from unified_engine import (UnifiedEngine, DerinAnaliz, read_excel_bytes, donem_from_filename,
-                             fmt_milyon, safe_float, C_ROE, roe_istikrar_hesapla, roe_donus_hesapla)
+                             fmt_milyon, safe_float, C_ROE, hesapla_pd, roe_istikrar_hesapla, roe_donus_hesapla)
 
 st.set_page_config(
     page_title="BIST Analiz Sistemi",
