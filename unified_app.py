@@ -6,7 +6,7 @@ import io
 from datetime import datetime
 
 from unified_engine import (UnifiedEngine, DerinAnaliz, read_excel_bytes, donem_from_filename,
-                             fmt_milyon, safe_float, C_ROE, roe_istikrar_hesapla)
+                             fmt_milyon, safe_float, C_ROE, roe_istikrar_hesapla, roe_donus_hesapla)
 
 st.set_page_config(
     page_title="BIST Analiz Sistemi",
@@ -167,6 +167,7 @@ with st.sidebar:
         "\U0001f3af Kesisim",
         "\U0001f476 Bebek Hisse",
         "\U0001f4ca Detay Analizi",
+        "\U0001f504 ROE Tarayici",
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
@@ -787,10 +788,19 @@ elif page == "\U0001f476 Bebek Hisse":
     with c4b:
         arama = st.text_input("\U0001f50d Hisse Ara", placeholder="Kod: HDFGS, GLRYH...",
                                label_visibility="visible")
+    sadece_donus = st.checkbox("🔄 Sadece ROE Donusu Yasayanlar", value=False,
+                               help="Son 1-2 donemde ROE negatiften pozitife gecmis hisseler")
+
     goster = [r for r in sonuclar if r['karar'] in kf]
     if arama: goster = [r for r in goster if arama.upper() in r['kod'].upper()]
     if sf: goster = [r for r in goster if r['sektor'] in sf]
     if min_x > 0: goster = [r for r in goster if r.get('potansiyel_x') and r['potansiyel_x']>=min_x]
+    if sadece_donus:
+        filtreli = []
+        for r in goster:
+            donus, _, _ = roe_donus_hesapla(engine.quarters, engine.sorted_donems, r['kod'])
+            if donus: filtreli.append(r)
+        goster = filtreli
 
     if sir=="Potansiyel X \u2193":
         goster.sort(key=lambda r: r.get('potansiyel_x') or 0, reverse=True)
@@ -842,6 +852,8 @@ elif page == "\U0001f476 Bebek Hisse":
         'Hedef PD':      fmt_milyon(r.get('hedef_pd')),
         'Mevcut PD':     fmt_milyon(r.get('pd_val')),
         'Ozkaynak':      fmt_milyon(r.get('ozkaynak')),
+        'ROE 30+D':      roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0],
+        'ROE Don':       '🔄' if roe_donus_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0] else '',
     } for r in goster])
 
     edited = st.data_editor(tablo, column_config={
@@ -1043,16 +1055,16 @@ elif page == "\U0001f4ca Detay Analizi":
         tip = METRIK_ACIK.get(m["isim"], "")
 
         kartlar_html += (
-            f"<div style='flex:1;min-width:80px;background:{bg};border:1px solid {brd};"
-            f"border-radius:10px;padding:10px 6px;text-align:center'>"
-            f"<div style='font-size:8px;color:#475569;text-transform:uppercase;"
-            f"letter-spacing:1px;margin-bottom:5px'>{m['isim']}</div>"
-            f"<div style='font-size:20px;font-weight:900;color:{renk};line-height:1.1'>{hisse_fmt}</div>"
-            f"<div style='font-size:9px;color:{renk};margin:3px 0'>{fark_fmt}</div>"
-            f"<div style='border-top:1px solid {brd};margin:5px 0 3px;padding-top:4px'>"
-            f"<div style='font-size:11px;font-weight:700;color:#64748B'>{sektor_fmt}</div>"
-            f"<div style='font-size:7px;color:#334155'>sektor</div></div>"
-            f"<div style='font-size:7px;color:#1E3448'>{tip}</div>"
+            f"<div style='flex:1;min-width:85px;background:{bg};border:1px solid {brd};"
+            f"border-radius:10px;padding:12px 8px;text-align:center'>"
+            f"<div style='font-size:9px;color:#64748B;text-transform:uppercase;"
+            f"letter-spacing:1px;margin-bottom:6px;font-weight:600'>{m['isim']}</div>"
+            f"<div style='font-size:22px;font-weight:900;color:{renk};line-height:1.1'>{hisse_fmt}</div>"
+            f"<div style='font-size:10px;color:{renk};margin:4px 0;font-weight:700'>{fark_fmt}</div>"
+            f"<div style='border-top:1px solid {brd};margin:6px 0 4px;padding-top:5px'>"
+            f"<div style='font-size:13px;font-weight:700;color:#94A3B8'>{sektor_fmt}</div>"
+            f"<div style='font-size:8px;color:#475569;margin-top:1px'>sektor</div></div>"
+            f"<div style='font-size:8px;color:#334155;margin-top:3px'>{tip}</div>"
             f"</div>"
         )
     kartlar_html += "</div>"
@@ -1434,6 +1446,124 @@ elif page == "\U0001f4ca Detay Analizi":
 
 
 # ════════════════════════════════════════════════════════════════════════════
+
+# ════════════════════════════════════════════════════════════════════════════
+# SAYFA: ROE TARAYICI
+# ════════════════════════════════════════════════════════════════════════════
+elif page == "\U0001f504 ROE Tarayici":
+    import plotly.graph_objects as go
+    st.markdown("""<div class='ph'>
+    <div class='ph-badge' style='background:#0A1C0A;color:#4ADE80;border:1px solid #166534'>
+    ROE TARAYICI</div>
+    <div class='ph-title'>ROE Istikrar ve Donus Analizi</div>
+    <div class='ph-sub'>Pirlanta hisseler · Donus sinyali · GXSMODUJ metodolojisi</div>
+    </div>""", unsafe_allow_html=True)
+
+    veri_yukle_widget()
+    engine = st.session_state.engine
+    if not engine:
+        bos_ekran("\U0001f504", "Once veri yukle"); st.stop()
+
+    son_data = engine.son_data
+    donems   = engine.sorted_donems
+
+    # Tum hisseleri tara
+    istikrar_list = []  # Hic %30 altina dusmedi
+    donus_list    = []  # Son donemde neg->poz
+    yaklasan_list = []  # ROE yukseliyor, %30'a yaklasiyor
+
+    for kod, row in son_data.items():
+        pd_val = hesapla_pd(row)
+        if not pd_val or pd_val <= 0: continue
+
+        son_kac, hic_dum, son_roe = roe_istikrar_hesapla(engine.quarters, donems, kod)
+        donus, d_roe, d_kac = roe_donus_hesapla(engine.quarters, donems, kod)
+
+        sektor = row.get("Hisse Sekt\u00f6r", "")
+
+        if hic_dum and son_kac >= 4:
+            istikrar_list.append({'kod':kod,'sektor':sektor,'son_roe':son_roe,
+                                   'son_kac':son_kac,'pd_val':pd_val})
+        if donus:
+            donus_list.append({'kod':kod,'sektor':sektor,'son_roe':d_roe,
+                                'kac_poz':d_kac,'pd_val':pd_val})
+
+        # ROE yukseliyor ve %20-30 arasi = yaklasanlar
+        if son_roe and 15 <= son_roe < 30:
+            roe_seri = [safe_float(engine.quarters[d].get(kod,{}).get(C_ROE,""))
+                        for d in donems[-6:]]
+            gecerli = [r for r in roe_seri if r is not None]
+            if len(gecerli) >= 3 and gecerli[-1] > gecerli[0]:
+                yaklasan_list.append({'kod':kod,'sektor':sektor,'son_roe':son_roe,
+                                       'pd_val':pd_val})
+
+    istikrar_list.sort(key=lambda x: x['son_roe'], reverse=True)
+    donus_list.sort(key=lambda x: x['son_roe'], reverse=True)
+    yaklasan_list.sort(key=lambda x: x['son_roe'], reverse=True)
+
+    # Ozet metrikler
+    st.markdown(f"""<div class='mrow'>
+    <div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(istikrar_list)}</div>
+      <div class='mc-lbl'>Pirlanta (Hic Dusmedi)</div></div>
+    <div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(donus_list)}</div>
+      <div class='mc-lbl'>Donus Sinyali</div></div>
+    <div class='mc mc-yellow'><div class='mc-num' style='color:#FCD34D'>{len(yaklasan_list)}</div>
+      <div class='mc-lbl'>%30'a Yaklasan</div></div>
+    </div>""", unsafe_allow_html=True)
+
+    tab_ist, tab_don, tab_yak = st.tabs([
+        f"\U0001f48e Pirlanta ({len(istikrar_list)})",
+        f"\U0001f504 Donus Sinyali ({len(donus_list)})",
+        f"\U0001f4c8 %30'a Yaklasan ({len(yaklasan_list)})"
+    ])
+
+    def roe_tablo(liste, ekstra_col=""):
+        if not liste:
+            st.info("Bu kategoride hisse yok.")
+            return
+        import pandas as pd
+        df = pd.DataFrame([{
+            'Kod': r['kod'], 'Sektor': r['sektor'],
+            'Son ROE%': round(r['son_roe'],1) if r.get('son_roe') else None,
+            ekstra_col if ekstra_col else 'PD': (
+                r.get('son_kac') if ekstra_col=='30+ Donem' else
+                r.get('kac_poz') if ekstra_col=='Poz. Donem' else None
+            ) if ekstra_col else fmt_milyon(r['pd_val']),
+            'PD': fmt_milyon(r['pd_val']),
+        } for r in liste])
+        if not ekstra_col:
+            df = df.drop(columns=[""])
+        st.dataframe(df, hide_index=True, use_container_width=True,
+                     height=min(40+len(liste)*35, 500))
+        if liste:
+            xls = df.copy()
+            st.download_button("\u2b07\ufe0f Excel Indir",
+                data=df_to_excel_bytes(xls),
+                file_name=f"ROE_tarama_{st.session_state.son_donem}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    with tab_ist:
+        st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
+        border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
+        Tum veri gecmisinde ROE hic %30 altina dusmemis hisseler. GXSMODUJ pirlanta formulu.
+        </div>""", unsafe_allow_html=True)
+        roe_tablo(istikrar_list, '30+ Donem')
+
+    with tab_don:
+        st.markdown("""<div style='background:#0A1020;border:1px solid #1E3A8A;
+        border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
+        Son 1-2 donemde ROE negatiften pozitife gecen hisseler. Backtest: ort 22.8x, %9 zarar.
+        2018-2020 araliginda bu sinyal SIFIR zarar uretemistir.
+        </div>""", unsafe_allow_html=True)
+        roe_tablo(donus_list, 'Poz. Donem')
+
+    with tab_yak:
+        st.markdown("""<div style='background:#1C1208;border:1px solid #92400E;
+        border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
+        ROE yukseliyor ve %15-30 bandinda. Henuz %30 esigine gelmemis, takipte tutulabilir.
+        </div>""", unsafe_allow_html=True)
+        roe_tablo(yaklasan_list, '')
+
 # SAYFA 4: TAKİP LİSTESİ
 # ════════════════════════════════════════════════════════════════════════════
 elif page == "\u2b50 Takip Listesi":
