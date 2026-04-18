@@ -127,7 +127,7 @@ hr { border-color:#0F2040 !important; }
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 for k,v in [('quarters',{}),('engine',None),('son_donem',None),('son_yukleme',None),
-             ('watchlist',{}),('geri_yil',3)]:
+             ('watchlist',{}),('geri_yil',3),('hisse_git',None),('page_key',0)]:
     if k not in st.session_state: st.session_state[k]=v
 
 def df_to_excel_bytes(df):
@@ -156,12 +156,18 @@ def badge(k):
 
 KARAR_RENK = {'GUCLU ADAY':'#4ADE80','POTANSIYEL':'#FCD34D','ZAYIF':'#FB923C','ELENDI':'#F87171'}
 
+def git_detay(kod):
+    """Hisse koduna tiklayinca Detay Analizi'ne git"""
+    st.session_state.hisse_git = kod
+    st.session_state.page_key += 1
+    st.rerun()
+
 # ── SIDEBAR ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<div class='sb-brand'>BIST <span>ANALiZ</span></div>", unsafe_allow_html=True)
     st.markdown("<div class='sb-sub'>FARK · GERI · BEBEK · KESISIM</div>", unsafe_allow_html=True)
 
-    page = st.radio("", [
+    SAYFALAR = [
         "\U0001f50d FARK Scanner",
         "\U0001f4c9 GER\u0130 Taray\u0131c\u0131",
         "\U0001f3af Kesisim",
@@ -171,7 +177,13 @@ with st.sidebar:
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
-    ], label_visibility="collapsed")
+    ]
+    detay_idx = SAYFALAR.index("\U0001f4ca Detay Analizi")
+    baslangic = detay_idx if st.session_state.hisse_git else 0
+    page = st.radio("", SAYFALAR,
+                    index=baslangic,
+                    label_visibility="collapsed",
+                    key=f"page_radio_{st.session_state.page_key}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -471,6 +483,12 @@ if page == "\U0001f50d FARK Scanner":
             file_name=f"FARK_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 3px'>Detay icin hisse koduna tikla:</p>", unsafe_allow_html=True)
+        btn_cols = st.columns(min(len(goster), 8))
+        for i, r in enumerate(goster[:16]):
+            with btn_cols[i % 8]:
+                if st.button(r['kod'], key=f"fark_btn_{r['kod']}", use_container_width=True):
+                    git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 2: GERI TARAYICI
@@ -601,6 +619,12 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
             file_name=f"GERI_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 3px'>Detay icin hisse koduna tikla:</p>", unsafe_allow_html=True)
+        btn_cols = st.columns(min(len(goster), 8))
+        for i, r in enumerate(goster[:16]):
+            with btn_cols[i % 8]:
+                if st.button(r['kod'], key=f"geri_btn_{r['kod']}", use_container_width=True):
+                    git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 3: KESİŞİM
@@ -1533,6 +1557,12 @@ elif page == "\U0001f504 ROE Tarayici":
             file_name=f"ROE_{dl_key}_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=dl_key)
+        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 3px'>Detay icin hisse koduna tikla:</p>", unsafe_allow_html=True)
+        btn_cols2 = st.columns(min(len(liste), 8))
+        for i, r in enumerate(liste[:16]):
+            with btn_cols2[i % 8]:
+                if st.button(r['kod'], key=f"{dl_key}_btn_{r['kod']}", use_container_width=True):
+                    git_detay(r['kod'])
 
     with tab_ist:
         st.markdown("<div style='background:#0A1C0A;border:1px solid #166534;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Tum veri gecmisinde ROE hic %30 altina dusmemis hisseler. GXSMODUJ pirlanta formulu.</div>", unsafe_allow_html=True)
