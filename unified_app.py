@@ -412,6 +412,7 @@ if page == "\U0001f50d FARK Scanner":
                 f"{len(goster)} hisse · Donem: <b style='color:#94A3B8'>"
                 f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
 
+    from unified_engine import roe_istikrar_hesapla
     tablo = pd.DataFrame([{
         '\u2b50':       r['kod'] in st.session_state.watchlist,
         'Kod':          r['kod'],
@@ -425,6 +426,8 @@ if page == "\U0001f50d FARK Scanner":
         'FK/PD%':       round(r['fkpd'],1) if r.get('fkpd') else None,
         'Marj%':        round(r['marj'],1) if r.get('marj') else None,
         'Buyume%':      round(r.get('buyume',0),0) if r.get('buyume') is not None else None,
+        'ROE 30+D':     roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0],
+        'ROE Hic':      '\u2714' if roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[1] else '',
     } for r in goster])
 
     edited = st.data_editor(tablo, column_config={
