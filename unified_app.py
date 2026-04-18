@@ -1187,53 +1187,6 @@ elif page == "\U0001f4ca Detay Analizi":
     # ROE Trend Grafigi
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:8px\">"
-                "\U0001f4c8 ROE% Trendi — %30 Esigi</h3>", unsafe_allow_html=True)
-    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe_detay",
-                      format="%d donem", label_visibility="collapsed")
-    d_roe = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n_roe:]]
-    roe_h_tum = da.hisse_seri(C_ROE)
-    roe_s_tum = da.sektor_seri(C_ROE)
-    roe_h = [s for s in roe_h_tum if s['donem'] in d_roe]
-    roe_s = [s for s in roe_s_tum if s['donem'] in d_roe]
-    fig_roe = go.Figure()
-    fig_roe.add_trace(go.Scatter(
-        x=[s['donem'] for s in roe_h], y=[s['deger'] for s in roe_h],
-        name=secilen, mode='lines+markers',
-        line=dict(color='#38BDF8',width=2), marker=dict(size=5)))
-    fig_roe.add_trace(go.Scatter(
-        x=[s['donem'] for s in roe_s], y=[s['deger'] for s in roe_s],
-        name='Sektor Medyani', mode='lines',
-        line=dict(color='#475569',width=1.5,dash='dot')))
-    fig_roe.add_hline(y=30, line_color='#F87171', line_dash='dash',
-                      annotation_text='%30 Esigi', annotation_font_color='#F87171')
-    fig_roe.update_layout(
-        paper_bgcolor=GRAFIK_BG, plot_bgcolor=GRAFIK_BG,
-        font=dict(color='#475569',size=10),
-        margin=dict(l=10,r=10,t=10,b=10), height=280,
-        xaxis=dict(gridcolor=GRAFIK_GRID,tickangle=-45,tickfont=dict(size=8)),
-        yaxis=dict(gridcolor=GRAFIK_GRID,title='ROE %'),
-        legend=dict(font=dict(size=9),bgcolor='rgba(0,0,0,0)'),
-        showlegend=True)
-    st.plotly_chart(fig_roe, use_container_width=True)
-    son_kac, hic_dum, son_roe = roe_istikrar_hesapla(
-        engine.quarters, engine.sorted_donems, secilen)
-    if son_roe and son_roe >= 30:
-        renk_roe = '#4ADE80' if son_kac >= 8 else '#FCD34D' if son_kac >= 4 else '#38BDF8'
-        mesaj_roe = f'Son {son_kac} donemdir %30 uzerinde'
-        if hic_dum: mesaj_roe += ' | Tum tarihte hic altina dusmedi ✔'
-    else:
-        renk_roe = '#F87171'
-        mesaj_roe = f'Son ROE: {son_roe:.1f}% — %30 altinda' if son_roe else 'ROE verisi yok'
-    st.markdown(
-        f"<div style='background:#0D1926;border:1px solid #0F2040;border-radius:8px;"
-        f"padding:8px 14px;font-size:11px;color:{renk_roe}'>"
-        f"{secilen} — {mesaj_roe}</div>",
-        unsafe_allow_html=True)
-
-
-    # ROE Trend Grafigi
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:8px\">"
                 "\U0001f4c8 ROE% Trendi \u2014 %30 Esigi</h3>", unsafe_allow_html=True)
     n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe_detay",
                       format="%d donem", label_visibility="collapsed")
