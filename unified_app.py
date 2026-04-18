@@ -371,6 +371,11 @@ if page == "\U0001f50d FARK Scanner":
       <div class='mc-lbl'>Elendi</div></div>
     </div>""", unsafe_allow_html=True)
 
+    arama_col2, bos2 = st.columns([1.5, 4.5])
+    with arama_col2:
+        arama_fark = st.text_input("\U0001f50d Hisse Ara", placeholder="Kod ara...",
+                                    label_visibility="collapsed", key="fark_ara")
+
     c1,c2,c3,c4 = st.columns([1.5,2,1.5,1])
     with c1:
         kf = st.multiselect("Karar",["GUCLU ADAY","POTANSIYEL","ZAYIF","ELENDI"],
@@ -383,6 +388,7 @@ if page == "\U0001f50d FARK Scanner":
         mp = st.number_input("Min Puan",0,100,0,5)
 
     goster = [r for r in sonuclar if r['karar'] in kf and r['puan']>=mp]
+    if arama_fark: goster = [r for r in goster if arama_fark.upper() in r['kod'].upper()]
     if sf: goster = [r for r in goster if r['sektor'] in sf]
     if sir == "FK/PD% \u2193": goster.sort(key=lambda r: r.get('fkpd') or 0, reverse=True)
     elif sir == "Buyume% \u2193": goster.sort(key=lambda r: r.get('buyume') or 0, reverse=True)
@@ -474,6 +480,11 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
       <div class='mc-lbl'>Elendi</div></div>
     </div>""", unsafe_allow_html=True)
 
+    arama_col3, bos3 = st.columns([1.5, 4.5])
+    with arama_col3:
+        arama_geri = st.text_input("\U0001f50d Hisse Ara", placeholder="Kod ara...",
+                                    label_visibility="collapsed", key="geri_ara")
+
     c1,c2,c3,c4 = st.columns([1.5,2,1.5,1.5])
     with c1:
         kf = st.multiselect("Karar",["GUCLU ADAY","POTANSIYEL","ZAYIF","ELENDI"],
@@ -488,6 +499,7 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
         sadece_geride = st.checkbox("\U0001f7e2 Sadece Fiyat Geride",False)
 
     goster = [r for r in sonuclar if r['karar'] in kf]
+    if arama_geri: goster = [r for r in goster if arama_geri.upper() in r['kod'].upper()]
     if sf: goster=[r for r in goster if r['sektor'] in sf]
     if sadece_geride: goster=[r for r in goster if r.get('fiyat_geride')]
 
@@ -723,10 +735,16 @@ elif page == "\U0001f476 Bebek Hisse":
       <div class='mc-lbl'>Toplam Gecti</div></div>
     </div>""", unsafe_allow_html=True)
 
+    # Arama + Filtreler
+    arama_col, bos = st.columns([1.5, 4.5])
+    with arama_col:
+        arama = st.text_input("\U0001f50d Hisse Ara", placeholder="GLRYH, HDFGS...",
+                               label_visibility="collapsed")
+
     c1,c2,c3,c4 = st.columns([1.5,2,1.5,1.5])
     with c1:
         kf = st.multiselect("Karar",["KARINCA GUCLU","BEBEK ADAY","IZLE","ZAYIF"],
-                             default=["KARINCA GUCLU","BEBEK ADAY"])
+                             default=["KARINCA GUCLU","BEBEK ADAY","IZLE"])
     with c2:
         sf = st.multiselect("Sektor", sorted(set(r['sektor'] for r in sonuclar if r['sektor'])))
     with c3:
@@ -736,6 +754,7 @@ elif page == "\U0001f476 Bebek Hisse":
         min_x = st.number_input("Min Potansiyel X", 0.0, 50.0, 0.0, 1.0)
 
     goster = [r for r in sonuclar if r['karar'] in kf]
+    if arama: goster = [r for r in goster if arama.upper() in r['kod'].upper()]
     if sf: goster = [r for r in goster if r['sektor'] in sf]
     if min_x > 0: goster = [r for r in goster if r.get('potansiyel_x') and r['potansiyel_x']>=min_x]
 
