@@ -501,15 +501,14 @@ if page == "\U0001f50d FARK Scanner":
             file_name=f"FARK_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        # Kompakt detay butonlari
-        btn_html = "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:8px'>"
-        for r in goster[:24]:
-            btn_html += f"<span style='display:inline-block'></span>"
-        btn_html += "</div>"
-        cols_d = st.columns(8)
-        for i, r in enumerate(goster[:24]):
-            with cols_d[i % 8]:
-                if st.button(r['kod'], key=f"fark_btn_{r['kod']}"):
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        for r in goster:
+            fc1,fc2,fc3,fc4 = st.columns([2,3,1,1])
+            with fc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
+            with fc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
+            with fc3: st.markdown(f"<span style='color:#FCD34D;font-size:11px'>{r.get('puan','')}</span>", unsafe_allow_html=True)
+            with fc4:
+                if st.button("\U0001f4ca", key=f"fd_{r['kod']}", help="Detay Analizi"):
                     git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -641,10 +640,13 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
             file_name=f"GERI_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        cols_d2 = st.columns(8)
-        for i, r in enumerate(goster[:24]):
-            with cols_d2[i % 8]:
-                if st.button(r['kod'], key=f"geri_btn_{r['kod']}"):
+        for r in goster:
+            gc1,gc2,gc3,gc4 = st.columns([2,3,1,1])
+            with gc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
+            with gc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
+            with gc3: st.markdown(f"<span style='color:#FCD34D;font-size:11px'>{r.get('puan','')}</span>", unsafe_allow_html=True)
+            with gc4:
+                if st.button("\U0001f4ca", key=f"gd_{r['kod']}", help="Detay Analizi"):
                     git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -938,6 +940,17 @@ elif page == "\U0001f476 Bebek Hisse":
             st.toast(f"\u2b50 {kod} eklendi!",icon="\u2705"); st.rerun()
         elif not istek and in_wl:
             del st.session_state.watchlist[kod]; st.rerun()
+
+    if goster:
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        for r in goster:
+            bc1,bc2,bc3,bc4 = st.columns([2,3,1,1])
+            with bc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
+            with bc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
+            with bc3: st.markdown(f"<span style='color:#FCD34D;font-size:11px'>{r.get('puan','')}</span>", unsafe_allow_html=True)
+            with bc4:
+                if st.button("📊", key=f"bd_{r['kod']}", help="Detay Analizi"):
+                    git_detay(r['kod'])
 
     # Potansiyel X Bar Grafigi
     if goster:
@@ -1578,10 +1591,13 @@ elif page == "\U0001f504 ROE Tarayici":
             file_name=f"ROE_{dl_key}_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=dl_key)
-        cols_d4 = st.columns(8)
-        for i, r in enumerate(liste[:24]):
-            with cols_d4[i % 8]:
-                if st.button(r['kod'], key=f"{dl_key}_btn_{r['kod']}"):
+        for r in liste:
+            rc1,rc2,rc3,rc4 = st.columns([2,3,2,1])
+            with rc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
+            with rc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
+            with rc3: st.markdown(f"<span style='color:#4ADE80;font-size:11px'>ROE:{r.get('son_roe',0):.0f}%</span>", unsafe_allow_html=True)
+            with rc4:
+                if st.button("\U0001f4ca", key=f"{dl_key}_d_{r['kod']}", help="Detay Analizi"):
                     git_detay(r['kod'])
 
     with tab_ist:
