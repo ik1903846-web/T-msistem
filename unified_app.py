@@ -1188,7 +1188,7 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:8px\">"
                 "\U0001f4c8 ROE% Trendi — %30 Esigi</h3>", unsafe_allow_html=True)
-    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe",
+    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe_detay",
                       format="%d donem", label_visibility="collapsed")
     d_roe = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n_roe:]]
     roe_h_tum = da.hisse_seri(C_ROE)
@@ -1235,7 +1235,7 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:8px\">"
                 "\U0001f4c8 ROE% Trendi \u2014 %30 Esigi</h3>", unsafe_allow_html=True)
-    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe",
+    n_roe = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_roe_detay",
                       format="%d donem", label_visibility="collapsed")
     d_roe = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n_roe:]]
     roe_h_tum = da.hisse_seri(C_ROE)
