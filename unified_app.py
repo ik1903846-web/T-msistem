@@ -907,6 +907,133 @@ elif page == "\U0001f4ca Detay Analizi":
     else:
         st.info("Yeterli veri yok — daha fazla donem yukle.")
 
+    # ── Kat Buyume Tablosu ───────────────────────────────────────────────────
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:16px;margin-bottom:8px\">"
+                "\U0001f4ca Kat Buyume Tablosu</h3>", unsafe_allow_html=True)
+    st.markdown("<p style=\"font-size:11px;color:#475569;margin-bottom:14px\">"
+                "Ilk pozitif degerden son degere buyume. GXSMODUJ varlik analizi cercevesi.</p>",
+                unsafe_allow_html=True)
+
+    kat_tablo = da.kat_buyume_tablosu()
+    col_tbl, col_bar = st.columns([1, 2])
+
+    with col_tbl:
+        for item in kat_tablo:
+            if item["kat"] is None: continue
+            kat = item["kat"]
+            if item["kalem"] in ("KV Borc","UV Borc"):
+                renk = "#F87171" if kat >= 5 else "#FCD34D" if kat >= 2 else "#4ADE80"
+            else:
+                renk = "#4ADE80" if kat >= 5 else "#FCD34D" if kat >= 2 else "#F87171"
+            st.markdown(f"""<div style='display:flex;justify-content:space-between;
+            align-items:center;padding:6px 12px;background:#0D1926;
+            border-radius:6px;margin-bottom:3px;border-left:3px solid {renk}'>
+            <span style='font-size:12px;color:#94A3B8'>{item["kalem"]}</span>
+            <span style='font-size:14px;font-weight:800;color:{renk}'>{kat}x</span>
+            </div>""", unsafe_allow_html=True)
+
+    with col_bar:
+        kalemler = [i["kalem"] for i in kat_tablo if i["kat"] is not None]
+        kat_vals = [i["kat"]   for i in kat_tablo if i["kat"] is not None]
+        renkler  = []
+        for i in kat_tablo:
+            if i["kat"] is None: continue
+            if i["kalem"] in ("KV Borc","UV Borc"):
+                renkler.append("#F87171" if i["kat"]>=5 else "#FCD34D" if i["kat"]>=2 else "#4ADE80")
+            else:
+                renkler.append("#4ADE80" if i["kat"]>=5 else "#FCD34D" if i["kat"]>=2 else "#F87171")
+        fig_kat = go.Figure(go.Bar(
+            x=kat_vals, y=kalemler, orientation="h",
+            marker_color=renkler,
+            text=[f"{v}x" for v in kat_vals],
+            textposition="outside", textfont=dict(color="#94A3B8",size=11),
+            hovertemplate="%{y}: %{x}x<extra></extra>"
+        ))
+        fig_kat.update_layout(
+            paper_bgcolor=GRAFIK_BG, plot_bgcolor=GRAFIK_BG,
+            font=dict(color="#475569",size=11),
+            margin=dict(l=10,r=60,t=10,b=10),
+            height=max(200,len(kalemler)*32),
+            xaxis=dict(gridcolor=GRAFIK_GRID,title="Kat Buyume"),
+            yaxis=dict(gridcolor=GRAFIK_GRID,autorange="reversed"),
+            showlegend=False
+        )
+        st.plotly_chart(fig_kat, use_container_width=True)
+
+    # EFK ve PD bar grafikleri
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin:16px 0 8px\">"
+                "EFK ve Piyasa Degeri — Donem Bazli</h3>", unsafe_allow_html=True)
+    efk_item = next((i for i in kat_tablo if i["kalem"]=="EFK"), None)
+    pd_item  = next((i for i in kat_tablo if i["kalem"]=="Piyasa Degeri"), None)
+    if efk_item and pd_item:
+        col_e,col_p = st.columns(2)
+        with col_e:
+            seri = efk_item["seri"]
+            fig_e = go.Figure(go.Bar(
+                x=[s["donem"] for s in seri],
+                y=[(s["deger"]/1_000_000) if s["deger"] else None for s in seri],
+                marker_color="#38BDF8",
+                hovertemplate="%{x}<br>EFK: %{y:.0f}M<extra></extra>"
+            ))
+            fig_e.update_layout(
+                title=dict(text="EFK (Milyon TL)",font=dict(color="#94A3B8",size=12)),
+                paper_bgcolor=GRAFIK_BG,plot_bgcolor=GRAFIK_BG,
+                font=dict(color="#475569",size=10),
+                margin=dict(l=10,r=10,t=36,b=10),height=220,
+                xaxis=dict(gridcolor=GRAFIK_GRID,tickangle=-45,tickfont=dict(size=8)),
+                yaxis=dict(gridcolor=GRAFIK_GRID),showlegend=False
+            )
+            st.plotly_chart(fig_e, use_container_width=True)
+        with col_p:
+            seri = pd_item["seri"]
+            fig_p = go.Figure(go.Bar(
+                x=[s["donem"] for s in seri],
+                y=[(s["deger"]/1_000_000) if s["deger"] else None for s in seri],
+                marker_color="#FCD34D",
+                hovertemplate="%{x}<br>PD: %{y:.0f}M<extra></extra>"
+            ))
+            fig_p.update_layout(
+                title=dict(text="Piyasa Degeri (Milyon TL)",font=dict(color="#94A3B8",size=12)),
+                paper_bgcolor=GRAFIK_BG,plot_bgcolor=GRAFIK_BG,
+                font=dict(color="#475569",size=10),
+                margin=dict(l=10,r=10,t=36,b=10),height=220,
+                xaxis=dict(gridcolor=GRAFIK_GRID,tickangle=-45,tickfont=dict(size=8)),
+                yaxis=dict(gridcolor=GRAFIK_GRID),showlegend=False
+            )
+            st.plotly_chart(fig_p, use_container_width=True)
+
+    # FAVOK bonus grafigi
+    favok_item = next((i for i in kat_tablo if i["kalem"]=="FAVOK"), None)
+    if favok_item and any(s["deger"] for s in favok_item["seri"]):
+        st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin:8px 0\">FAVOK vs EFK Trendi</h3>",
+                    unsafe_allow_html=True)
+        seri_f = favok_item["seri"]
+        efk_seri_f = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
+        fig_f = go.Figure()
+        fig_f.add_trace(go.Bar(
+            x=[s["donem"] for s in seri_f],
+            y=[(s["deger"]/1_000_000) if s["deger"] else None for s in seri_f],
+            marker_color="#A78BFA",name="FAVOK",
+            hovertemplate="%{x}<br>FAVOK: %{y:.0f}M<extra></extra>"
+        ))
+        fig_f.add_trace(go.Scatter(
+            x=[s["donem"] for s in efk_seri_f],
+            y=[(s["deger"]/1_000_000) if s["deger"] else None for s in efk_seri_f],
+            name="EFK",line=dict(color="#38BDF8",width=2,dash="dot"),
+            mode="lines+markers",marker=dict(size=4),
+        ))
+        fig_f.update_layout(
+            paper_bgcolor=GRAFIK_BG,plot_bgcolor=GRAFIK_BG,
+            font=dict(color="#475569",size=10),
+            legend=dict(bgcolor="rgba(0,0,0,0)",font=dict(color="#64748B")),
+            margin=dict(l=10,r=10,t=10,b=10),height=220,
+            xaxis=dict(gridcolor=GRAFIK_GRID,tickangle=-45,tickfont=dict(size=8)),
+            yaxis=dict(gridcolor=GRAFIK_GRID,title="Milyon TL"),
+            hovermode="x unified"
+        )
+        st.plotly_chart(fig_f, use_container_width=True)
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 4: TAKİP LİSTESİ
