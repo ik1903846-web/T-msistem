@@ -130,6 +130,21 @@ for k,v in [('quarters',{}),('engine',None),('son_donem',None),('son_yukleme',No
              ('watchlist',{}),('geri_yil',3)]:
     if k not in st.session_state: st.session_state[k]=v
 
+def df_to_excel_bytes(df):
+    import io
+    buf = io.BytesIO()
+    with __import__('openpyxl').Workbook() as wb:
+        ws = wb.active
+        # Header
+        for ci, col in enumerate(df.columns, 1):
+            ws.cell(1, ci, col)
+        # Data
+        for ri, row in enumerate(df.itertuples(index=False), 2):
+            for ci, val in enumerate(row, 1):
+                ws.cell(ri, ci, val)
+        wb.save(buf)
+    return buf.getvalue()
+
 def donem_fmt(d):
     return f"{d[:4]}/{d[4:]}" if d and len(d)==6 else (d or '-')
 
@@ -444,6 +459,16 @@ if page == "\U0001f50d FARK Scanner":
             st.toast(f"\u2b50 {kod} eklendi!",icon="\u2705"); st.rerun()
         elif not istek and in_wl:
             del st.session_state.watchlist[kod]; st.rerun()
+
+    # Excel indir
+    if goster:
+        xls_df = tablo.drop(columns=['⭐'], errors='ignore')
+        st.download_button(
+            "⬇️ Listeyi Excel Olarak indir",
+            data=df_to_excel_bytes(xls_df),
+            file_name=f"FARK_{st.session_state.son_donem}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 2: GERI TARAYICI
@@ -764,9 +789,27 @@ elif page == "\U0001f476 Bebek Hisse":
     elif sir=="Marj% \u2193":
         goster.sort(key=lambda r: r.get('marj') or 0, reverse=True)
 
-    st.markdown(f"<p style='font-size:11px;color:#475569;margin:8px 0'>"
-                f"{len(goster)} hisse · Donem: <b style='color:#94A3B8'>"
-                f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
+    dl1b, dl2b = st.columns([4,1])
+    with dl1b:
+        st.markdown(f"<p style='font-size:11px;color:#475569;margin:8px 0'>"
+                    f"{len(goster)} hisse · Donem: <b style='color:#94A3B8'>"
+                    f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
+    with dl2b:
+        if goster:
+            import pandas as pd
+            bebek_df = pd.DataFrame([{
+                'Kod':r['kod'],'Sektor':r['sektor'],'Puan':r['puan'],'Karar':r['karar'],
+                'FK/PD%':round(r['fkpd'],1) if r.get('fkpd') else None,
+                'PD/DD':round(r['pddd'],2) if r.get('pddd') else None,
+                'Marj%':round(r['marj'],1) if r.get('marj') else None,
+                'ROE%':round(r['roe'],1) if r.get('roe') else None,
+                'Piotroski':r.get('piotroski'),
+                'Potansiyel X':round(r['potansiyel_x'],1) if r.get('potansiyel_x') else None,
+            } for r in goster])
+            st.download_button("⬇ Excel", df_to_excel_bytes(bebek_df),
+                               file_name=f"BEBEK_{st.session_state.son_donem}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               use_container_width=True)
 
     KARAR_CLR = {'KARINCA GUCLU':'#4ADE80','BEBEK ADAY':'#FCD34D',
                  'IZLE':'#38BDF8','ZAYIF':'#F87171'}
