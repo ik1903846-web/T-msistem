@@ -6,7 +6,7 @@ import io
 from datetime import datetime
 
 from unified_engine import (UnifiedEngine, DerinAnaliz, read_excel_bytes, donem_from_filename,
-                             fmt_milyon, safe_float)
+                             fmt_milyon, safe_float, C_ROE, roe_istikrar_hesapla)
 
 st.set_page_config(
     page_title="BIST Analiz Sistemi",
@@ -412,7 +412,6 @@ if page == "\U0001f50d FARK Scanner":
                 f"{len(goster)} hisse · Donem: <b style='color:#94A3B8'>"
                 f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
 
-    from unified_engine import roe_istikrar_hesapla
     tablo = pd.DataFrame([{
         '\u2b50':       r['kod'] in st.session_state.watchlist,
         'Kod':          r['kod'],
@@ -1216,7 +1215,6 @@ elif page == "\U0001f4ca Detay Analizi":
         legend=dict(font=dict(size=9),bgcolor='rgba(0,0,0,0)'),
         showlegend=True)
     st.plotly_chart(fig_roe, use_container_width=True)
-    from unified_engine import roe_istikrar_hesapla
     son_kac, hic_dum, son_roe = roe_istikrar_hesapla(
         engine.quarters, engine.sorted_donems, secilen)
     if son_roe and son_roe >= 30:
@@ -1264,8 +1262,7 @@ elif page == "\U0001f4ca Detay Analizi":
         legend=dict(font=dict(size=9),bgcolor="rgba(0,0,0,0)"),
         showlegend=True)
     st.plotly_chart(fig_roe, use_container_width=True)
-    from unified_engine import roe_istikrar_hesapla as _roe_fn
-    son_kac, hic_dum, son_roe = _roe_fn(engine.quarters, engine.sorted_donems, secilen)
+    son_kac, hic_dum, son_roe = roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, secilen)
     if son_roe and son_roe >= 30:
         renk_roe = "#4ADE80" if son_kac >= 8 else "#FCD34D" if son_kac >= 4 else "#38BDF8"
         mesaj_roe = f"Son {son_kac} donemdir %30 uzerinde"
