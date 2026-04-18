@@ -1484,7 +1484,7 @@ elif page == "\U0001f504 ROE Tarayici":
         if hic_dum and son_kac >= 4:
             istikrar_list.append({'kod':kod,'sektor':sektor,'son_roe':son_roe,
                                    'son_kac':son_kac,'pd_val':pd_val})
-        if donus:
+        if donus and d_roe and d_roe >= 30:
             donus_list.append({'kod':kod,'sektor':sektor,'son_roe':d_roe,
                                 'kac_poz':d_kac,'pd_val':pd_val})
 
@@ -1517,37 +1517,34 @@ elif page == "\U0001f504 ROE Tarayici":
         f"\U0001f4c8 %30'a Yaklasan ({len(yaklasan_list)})"
     ])
 
-    def roe_tablo(liste, ekstra_col=""):
+    def roe_tablo(liste, ekstra_col="", dl_key="roe_dl"):
         if not liste:
             st.info("Bu kategoride hisse yok.")
             return
-        import pandas as pd
-        df = pd.DataFrame([{
-            'Kod': r['kod'], 'Sektor': r['sektor'],
-            'Son ROE%': round(r['son_roe'],1) if r.get('son_roe') else None,
-            ekstra_col if ekstra_col else 'PD': (
-                r.get('son_kac') if ekstra_col=='30+ Donem' else
-                r.get('kac_poz') if ekstra_col=='Poz. Donem' else None
-            ) if ekstra_col else fmt_milyon(r['pd_val']),
-            'PD': fmt_milyon(r['pd_val']),
-        } for r in liste])
-        if not ekstra_col:
-            df = df.drop(columns=[""])
+        import pandas as _pd
+        satirlar = []
+        for r in liste:
+            satir = {'Kod': r['kod'], 'Sektor': r['sektor'],
+                     'Son ROE%': round(r['son_roe'],1) if r.get('son_roe') else None,
+                     'PD': fmt_milyon(r['pd_val'])}
+            if ekstra_col == '30+ Donem': satir[ekstra_col] = r.get('son_kac')
+            elif ekstra_col == 'Poz. Donem': satir[ekstra_col] = r.get('kac_poz')
+            satirlar.append(satir)
+        df = _pd.DataFrame(satirlar)
         st.dataframe(df, hide_index=True, use_container_width=True,
                      height=min(40+len(liste)*35, 500))
-        if liste:
-            xls = df.copy()
-            st.download_button("\u2b07\ufe0f Excel Indir",
-                data=df_to_excel_bytes(xls),
-                file_name=f"ROE_tarama_{st.session_state.son_donem}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button("\u2b07\ufe0f Excel Indir",
+            data=df_to_excel_bytes(df),
+            file_name=f"ROE_{dl_key}_{st.session_state.son_donem}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=dl_key)
 
     with tab_ist:
         st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
         border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
         Tum veri gecmisinde ROE hic %30 altina dusmemis hisseler. GXSMODUJ pirlanta formulu.
         </div>""", unsafe_allow_html=True)
-        roe_tablo(istikrar_list, '30+ Donem')
+        roe_tablo(istikrar_list, '30+ Donem', 'roe_dl_ist')
 
     with tab_don:
         st.markdown("""<div style='background:#0A1020;border:1px solid #1E3A8A;
@@ -1555,14 +1552,14 @@ elif page == "\U0001f504 ROE Tarayici":
         Son 1-2 donemde ROE negatiften pozitife gecen hisseler. Backtest: ort 22.8x, %9 zarar.
         2018-2020 araliginda bu sinyal SIFIR zarar uretemistir.
         </div>""", unsafe_allow_html=True)
-        roe_tablo(donus_list, 'Poz. Donem')
+        roe_tablo(donus_list, 'Poz. Donem', 'roe_dl_don')
 
     with tab_yak:
         st.markdown("""<div style='background:#1C1208;border:1px solid #92400E;
         border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
         ROE yukseliyor ve %15-30 bandinda. Henuz %30 esigine gelmemis, takipte tutulabilir.
         </div>""", unsafe_allow_html=True)
-        roe_tablo(yaklasan_list, '')
+        roe_tablo(yaklasan_list, '', 'roe_dl_yak')
 
 # SAYFA 4: TAKİP LİSTESİ
 # ════════════════════════════════════════════════════════════════════════════
