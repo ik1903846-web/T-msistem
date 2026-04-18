@@ -898,31 +898,61 @@ elif page == "\U0001f4ca Detay Analizi":
         return (3, k)
     tum_liste = sorted(set(kesisim + fark_list + geri_list + bebek_kodlar), key=kategori_sirasi)
 
-    c1,c2 = st.columns([2,1])
-    with c1:
-        if not tum_liste:
-            st.warning("Analiz icin once tarama yapilmali — veri yukle."); st.stop()
-        varsayilan = kesisim[0] if kesisim else tum_liste[0]
-        def sec_etiket(k):
-            if k in kesisim:     return f"🎯 {k}  ← Kesisim (FARK+GERI)"
-            if k in bebek_kodlar: return f"👶 {k}  ← Bebek Hisse"
-            if k in fark_list:   return f"🔍 {k}  ← FARK"
-            return f"📉 {k}  ← GERI"
-        secilen = st.selectbox(
-            "Hisse Sec", tum_liste,
-            index=tum_liste.index(varsayilan),
-            format_func=sec_etiket
+    if not tum_liste and not bebek_kodlar:
+        st.warning("Analiz icin once tarama yapilmali — veri yukle."); st.stop()
+
+    # Ana liste: Kesisim > FARK > GERI
+    ana_liste = sorted(set(kesisim+fark_list+geri_list),
+                       key=lambda k: (0 if k in kesisim else 1 if k in fark_list else 2, k))
+    bebek_liste = sorted(bebek_kodlar)
+
+    def ana_etiket(k):
+        if k in kesisim:   return f"\U0001f3af {k}  \u2190 Kesisim"
+        if k in fark_list: return f"\U0001f50d {k}  \u2190 FARK"
+        return f"\U0001f4c9 {k}  \u2190 GERI"
+
+    def bebek_et(k):
+        if k == "(Sec...)": return "\U0001f476 Bebek hisse sec..."
+        extra = []
+        if k in kesisim:   extra.append("Kesisim")
+        if k in fark_list: extra.append("FARK")
+        if k in geri_list: extra.append("GERI")
+        suf = " + ".join(extra)
+        return f"\U0001f476 {k}" + (f"  \u2190 {suf}" if suf else "")
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        v_ana = kesisim[0] if kesisim else (ana_liste[0] if ana_liste else "")
+        secilen_ana = st.selectbox(
+            "Hisse Sec (Kesisim / FARK / GERI)",
+            ana_liste if ana_liste else [""],
+            index=ana_liste.index(v_ana) if v_ana in ana_liste else 0,
+            format_func=ana_etiket
         )
-    with c2:
-        sektor = engine.son_data.get(secilen,{}).get("Hisse Sekt\u00f6r","")
-        sektor_hisse_say = sum(1 for v in engine.son_data.values()
-                               if v.get("Hisse Sekt\u00f6r","") == sektor)
-        st.markdown(f"""<div style='background:#0D1926;border:1px solid #0F2040;
-        border-radius:10px;padding:14px 16px;margin-top:4px'>
-        <div style='font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:1px'>Sektor</div>
-        <div style='font-size:14px;font-weight:700;color:#E2E8F0;margin-top:2px'>{sektor}</div>
-        <div style='font-size:11px;color:#475569;margin-top:2px'>{sektor_hisse_say} hisse ile karsilastiriliyor</div>
-        </div>""", unsafe_allow_html=True)
+    with col_b:
+        secilen_bebek = st.selectbox(
+            "\U0001f476 Bebek Hisse Sec",
+            ["(Sec...)"] + bebek_liste,
+            format_func=bebek_et
+        )
+
+    secilen = secilen_bebek if secilen_bebek != "(Sec...)" else secilen_ana
+    sektor = engine.son_data.get(secilen, {}).get("Hisse Sekt\u00f6r", "")
+    sektor_hisse_say = sum(1 for v in engine.son_data.values()
+                           if v.get("Hisse Sekt\u00f6r","") == sektor)
+    st.markdown(
+        "<div style='background:#0D1926;border:1px solid #0F2040;border-radius:8px;"
+        "padding:10px 16px;margin-top:6px;display:flex;gap:20px;align-items:center'>"
+        "<div><div style='font-size:9px;color:#475569;text-transform:uppercase;"
+        "letter-spacing:1px'>Secilen Hisse</div>"
+        "<div style='font-size:20px;font-weight:900;color:#38BDF8'>" + secilen + "</div></div>"
+        "<div><div style='font-size:9px;color:#475569;text-transform:uppercase;"
+        "letter-spacing:1px'>Sektor</div>"
+        "<div style='font-size:13px;font-weight:700;color:#E2E8F0'>" + sektor + "</div>"
+        "<div style='font-size:9px;color:#475569'>" + str(sektor_hisse_say) + " hisse ile karsilastiriliyor</div>"
+        "</div></div>",
+        unsafe_allow_html=True
+    )
 
     da = DerinAnaliz(engine, secilen)
     deger_kart = da.deger_kart()
