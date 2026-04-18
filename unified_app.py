@@ -150,6 +150,7 @@ with st.sidebar:
         "\U0001f50d FARK Scanner",
         "\U0001f4c9 GER\u0130 Taray\u0131c\u0131",
         "\U0001f3af Kesisim",
+        "\U0001f476 Bebek Hisse",
         "\U0001f4ca Detay Analizi",
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
@@ -669,6 +670,184 @@ elif page == "\U0001f3af Kesisim":
                         'donem':st.session_state.son_donem}
                     st.toast(f"\u2b50 {r['kod']} eklendi!",icon="\u2705")
                 st.rerun()
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# SAYFA: BEBEK HiSSE TARAYICISI
+# ════════════════════════════════════════════════════════════════════════════
+elif page == "\U0001f476 Bebek Hisse":
+    import plotly.graph_objects as go
+    st.markdown("""<div class='ph'>
+    <div class='ph-badge' style='background:#0A1C0A;color:#4ADE80;border:1px solid #166534'>
+    BEBEK HiSSE</div>
+    <div class='ph-title'>Karinca Potansiyeli Olan Hisseler</div>
+    <div class='ph-sub'>Kucuk cüsse · Büyük kaldirac · Değerlenmemis varliklar · Min 10x potansiyel</div>
+    </div>""", unsafe_allow_html=True)
+
+    with st.expander("\U0001f4d6 Metodoloji", expanded=False):
+        st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
+        border-radius:8px;padding:14px 18px;font-size:12px;color:#94A3B8'>
+        <b style='color:#4ADE80'>Bebek Hisse Nedir? (GXSMODUJ)</b><br><br>
+        "Mevcutta cussesi kucuk (Ozkaynak Birikimi) ama o cusseye gore kaldiraclari buyuk
+        (karlilik oranlari, kiymetli istirak, is kolu, degerlenmemis duran varliklar) hisselerdir.
+        Karm karinca gucü olan hisseler diyebiliriz — yeri geldiginde bir karinca agirliginin
+        50 katı yuku tasiyabilir. Bir bebek hissenin minimum 10 katlik bir potansiyeli olmalidir."
+        <br><br>
+        <b style='color:#E2E8F0'>Puanlama Boyutlari:</b><br>
+        A(25p) Kucuk Cusse · B(30p) Kaldirac Buyuklugu · C(20p) Degerlenmemis Varlik ·
+        D(15p) Finansal Saglik · E(10p) Buyume Potansiyeli
+        </div>""", unsafe_allow_html=True)
+
+    veri_yukle_widget()
+    engine = st.session_state.engine
+    if not engine:
+        bos_ekran("\U0001f476", "Veri yukleyerek Bebek Hisse taramasini baslat"); st.stop()
+
+    sonuclar = engine.bebek_tara()
+    guclu = [r for r in sonuclar if r['puan']>=80]
+    aday  = [r for r in sonuclar if 60<=r['puan']<80]
+    izle  = [r for r in sonuclar if 40<=r['puan']<60]
+    on_x  = [r for r in sonuclar if r.get('potansiyel_x') and r['potansiyel_x']>=10]
+
+    st.markdown(f"""<div class='mrow'>
+    <div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(guclu)}</div>
+      <div class='mc-lbl'>Karinca Guclu</div></div>
+    <div class='mc mc-yellow'><div class='mc-num' style='color:#FCD34D'>{len(aday)}</div>
+      <div class='mc-lbl'>Bebek Aday</div></div>
+    <div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(izle)}</div>
+      <div class='mc-lbl'>Izle</div></div>
+    <div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(on_x)}</div>
+      <div class='mc-lbl'>10x+ Potansiyel</div></div>
+    <div class='mc mc-purple'><div class='mc-num' style='color:#A78BFA'>{len(sonuclar)}</div>
+      <div class='mc-lbl'>Toplam Gecti</div></div>
+    </div>""", unsafe_allow_html=True)
+
+    c1,c2,c3,c4 = st.columns([1.5,2,1.5,1.5])
+    with c1:
+        kf = st.multiselect("Karar",["KARINCA GUCLU","BEBEK ADAY","IZLE","ZAYIF"],
+                             default=["KARINCA GUCLU","BEBEK ADAY"])
+    with c2:
+        sf = st.multiselect("Sektor", sorted(set(r['sektor'] for r in sonuclar if r['sektor'])))
+    with c3:
+        sir = st.selectbox("Sirala",["Puan \u2193","Potansiyel X \u2193",
+                                      "FK/PD% \u2193","PD/DD \u2191","Marj% \u2193"])
+    with c4:
+        min_x = st.number_input("Min Potansiyel X", 0.0, 50.0, 0.0, 1.0)
+
+    goster = [r for r in sonuclar if r['karar'] in kf]
+    if sf: goster = [r for r in goster if r['sektor'] in sf]
+    if min_x > 0: goster = [r for r in goster if r.get('potansiyel_x') and r['potansiyel_x']>=min_x]
+
+    if sir=="Potansiyel X \u2193":
+        goster.sort(key=lambda r: r.get('potansiyel_x') or 0, reverse=True)
+    elif sir=="FK/PD% \u2193":
+        goster.sort(key=lambda r: r.get('fkpd') or 0, reverse=True)
+    elif sir=="PD/DD \u2191":
+        goster.sort(key=lambda r: r.get('pddd') or 999)
+    elif sir=="Marj% \u2193":
+        goster.sort(key=lambda r: r.get('marj') or 0, reverse=True)
+
+    st.markdown(f"<p style='font-size:11px;color:#475569;margin:8px 0'>"
+                f"{len(goster)} hisse · Donem: <b style='color:#94A3B8'>"
+                f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
+
+    KARAR_CLR = {'KARINCA GUCLU':'#4ADE80','BEBEK ADAY':'#FCD34D',
+                 'IZLE':'#38BDF8','ZAYIF':'#F87171'}
+
+    tablo = pd.DataFrame([{
+        '\u2b50':        r['kod'] in st.session_state.watchlist,
+        'Kod':           r['kod'],
+        'Sektor':        r['sektor'],
+        'Puan':          int(r['puan']),
+        'Karar':         r['karar'],
+        'A':r['A'],'B':r['B'],'C':r['C'],'D':r['D'],'E':r['E'],
+        'FK/PD%':        round(r['fkpd'],1)     if r.get('fkpd')      else None,
+        'PD/DD':         round(r['pddd'],2)     if r.get('pddd')      else None,
+        'Marj%':         round(r['marj'],1)     if r.get('marj')      else None,
+        'ROE%':          round(r['roe'],1)      if r.get('roe')       else None,
+        'Piotroski':     round(r['piotroski'],0) if r.get('piotroski') else None,
+        'Potansiyel X':  round(r['potansiyel_x'],1) if r.get('potansiyel_x') else None,
+        'Hedef PD':      fmt_milyon(r.get('hedef_pd')),
+        'Mevcut PD':     fmt_milyon(r.get('pd_val')),
+        'Ozkaynak':      fmt_milyon(r.get('ozkaynak')),
+    } for r in goster])
+
+    edited = st.data_editor(tablo, column_config={
+        '\u2b50':        st.column_config.CheckboxColumn('\u2b50',width='small'),
+        'Kod':            st.column_config.TextColumn('Kod',width='small'),
+        'Sektor':         st.column_config.TextColumn('Sektor',width='medium'),
+        'Puan':           st.column_config.NumberColumn('Puan',width='small',format='%d'),
+        'Karar':          st.column_config.TextColumn('Karar',width='medium'),
+        'A':st.column_config.NumberColumn('A',width='small'),
+        'B':st.column_config.NumberColumn('B',width='small'),
+        'C':st.column_config.NumberColumn('C',width='small'),
+        'D':st.column_config.NumberColumn('D',width='small'),
+        'E':st.column_config.NumberColumn('E',width='small'),
+        'FK/PD%':         st.column_config.NumberColumn('FK/PD%',width='small',format='%.1f'),
+        'PD/DD':          st.column_config.NumberColumn('PD/DD',width='small',format='%.2f'),
+        'Marj%':          st.column_config.NumberColumn('Marj%',width='small',format='%.1f'),
+        'ROE%':           st.column_config.NumberColumn('ROE%',width='small',format='%.1f'),
+        'Piotroski':      st.column_config.NumberColumn('Piotroski',width='small',format='%.0f'),
+        'Potansiyel X':   st.column_config.NumberColumn('Potansiyel X',width='small',format='%.1f'),
+        'Hedef PD':       st.column_config.TextColumn('Hedef PD',width='small'),
+        'Mevcut PD':      st.column_config.TextColumn('Mevcut PD',width='small'),
+        'Ozkaynak':       st.column_config.TextColumn('Ozkaynak',width='small'),
+    }, disabled=[c for c in tablo.columns if c!='\u2b50'],
+    hide_index=True, use_container_width=True,
+    height=min(40+len(goster)*35,600), key='bebek_tbl')
+
+    for i,row in edited.iterrows():
+        kod,istek = row['Kod'], row['\u2b50']
+        in_wl = kod in st.session_state.watchlist
+        if istek and not in_wl:
+            r = goster[i]
+            st.session_state.watchlist[kod] = {
+                'puan':r['puan'],'karar':r['karar'],'sektor':r['sektor'],
+                'sistem':'BEBEK','potansiyel_x':r.get('potansiyel_x'),
+                'eklenme':datetime.now().strftime('%Y-%m-%d'),
+                'donem':st.session_state.son_donem}
+            st.toast(f"\u2b50 {kod} eklendi!",icon="\u2705"); st.rerun()
+        elif not istek and in_wl:
+            del st.session_state.watchlist[kod]; st.rerun()
+
+    # Potansiyel X Bar Grafigi
+    if goster:
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
+                    "\U0001f4ca 10x Potansiyel Haritas\u0131</h3>", unsafe_allow_html=True)
+        top20 = sorted([r for r in goster if r.get('potansiyel_x')],
+                       key=lambda x: x['potansiyel_x'], reverse=True)[:20]
+        if top20:
+            kodlar = [r['kod'] for r in top20]
+            pot_x  = [r['potansiyel_x'] for r in top20]
+            renkler = ['#4ADE80' if x>=10 else '#FCD34D' if x>=5 else '#F87171' for x in pot_x]
+            fig = go.Figure(go.Bar(
+                x=pot_x, y=kodlar, orientation='h',
+                marker_color=renkler,
+                text=[f"{x:.1f}x" for x in pot_x],
+                textposition='outside',
+                textfont=dict(color='#94A3B8',size=11),
+                hovertemplate="%{y}: %{x:.1f}x potansiyel<extra></extra>"
+            ))
+            fig.add_vline(x=10, line_dash="dot", line_color="#4ADE80",
+                          annotation_text="10x Esigi", annotation_font_color="#4ADE80")
+            fig.update_layout(
+                paper_bgcolor='#080E17', plot_bgcolor='#080E17',
+                font=dict(color='#475569',size=11),
+                margin=dict(l=10,r=60,t=10,b=10),
+                height=max(250,len(top20)*28),
+                xaxis=dict(gridcolor='#0F2040',title='Potansiyel (X)'),
+                yaxis=dict(gridcolor='#0F2040',autorange='reversed'),
+                showlegend=False
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
+            border-radius:8px;padding:10px 16px;font-size:11px;color:#475569;margin-top:4px'>
+            \U0001f4a1 <b style='color:#4ADE80'>Potansiyel X Hesabi:</b>
+            Teorik Hedef PD = min(EFK x 15, Ozkaynak x 3) / Mevcut PD
+            Konservatif tahmindi — spekülasyon degil, finansal temel bazli.
+            </div>""", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════
