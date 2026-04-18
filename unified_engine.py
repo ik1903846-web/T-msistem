@@ -143,6 +143,46 @@ def roe_istikrar_hesapla(quarters, donems, kod):
     return son_kac, hic_dusmedi, son_roe
 
 
+def roe_donus_hesapla(quarters, donems, kod):
+    """
+    ROE negatiften pozitife donus sinyali.
+    Returns: (donus_var, son_roe, kac_donem_pozitif)
+    """
+    roe_seri = []
+    for d in donems:
+        r = safe_float(quarters[d].get(kod, {}).get(C_ROE, ''))
+        roe_seri.append(r)
+
+    gecerli = [(i, r) for i, r in enumerate(roe_seri) if r is not None]
+    if len(gecerli) < 5:
+        return False, None, 0
+
+    son_roe = gecerli[-1][1]
+    if son_roe <= 0:
+        return False, son_roe, 0
+
+    # Son 2 donem icinde neg->poz gecis var mi?
+    gecis = False
+    gecis_idx = 0
+    for j in range(len(gecerli)-1, max(0, len(gecerli)-3), -1):
+        if gecerli[j][1] > 0 and j > 0 and gecerli[j-1][1] < 0:
+            gecis = True
+            gecis_idx = j
+            break
+
+    if not gecis:
+        return False, son_roe, 0
+
+    # Onceki en az 2 donem negatif miydi?
+    onceki_neg = sum(1 for _, r in gecerli[max(0, gecis_idx-4):gecis_idx] if r < 0)
+    if onceki_neg < 2:
+        return False, son_roe, 0
+
+    # Donusten bu yana kac donem pozitif?
+    kac_poz = len(gecerli) - gecis_idx
+    return True, son_roe, kac_poz
+
+
 def bebek_karar(p):
     if p >= 80: return 'KARINCA GUCLU'
     if p >= 60: return 'BEBEK ADAY'
