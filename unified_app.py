@@ -1467,70 +1467,65 @@ elif page == "\U0001f504 ROE Tarayici":
     son_data = engine.son_data
     donems   = engine.sorted_donems
 
-    # Tum hisseleri tara
-    istikrar_list = []  # Hic %30 altina dusmedi
-    donus_list    = []  # Son donemde neg->poz
-    yaklasan_list = []  # ROE yukseliyor, %30'a yaklasiyor
+    # Tum hisseleri tara - 4 kategori
+    istikrar_list = []
+    donus_list    = []
+    alti_list     = []
+    ustu_list     = []
 
     for kod, row in son_data.items():
         pd_val = hesapla_pd(row)
         if not pd_val or pd_val <= 0: continue
-
         son_kac, hic_dum, son_roe = roe_istikrar_hesapla(engine.quarters, donems, kod)
         donus, d_roe, d_kac = roe_donus_hesapla(engine.quarters, donems, kod)
-
         sektor = row.get("Hisse Sekt\u00f6r", "")
 
         if hic_dum and son_kac >= 4:
-            istikrar_list.append({'kod':kod,'sektor':sektor,'son_roe':son_roe,
-                                   'son_kac':son_kac,'pd_val':pd_val})
-        if donus and d_roe and d_roe >= 30:
-            donus_list.append({'kod':kod,'sektor':sektor,'son_roe':d_roe,
-                                'kac_poz':d_kac,'pd_val':pd_val})
+            istikrar_list.append({"kod":kod,"sektor":sektor,"son_roe":son_roe,"son_kac":son_kac,"pd_val":pd_val})
+        if donus:
+            donus_list.append({"kod":kod,"sektor":sektor,"son_roe":d_roe,"kac_poz":d_kac,"pd_val":pd_val})
+        if son_roe is not None and son_roe < 30:
+            alti_list.append({"kod":kod,"sektor":sektor,"son_roe":son_roe,"pd_val":pd_val})
+        if son_roe is not None and son_roe >= 30:
+            ustu_list.append({"kod":kod,"sektor":sektor,"son_roe":son_roe,"son_kac":son_kac,"pd_val":pd_val})
 
-        # ROE yukseliyor ve %20-30 arasi = yaklasanlar
-        if son_roe and 15 <= son_roe < 30:
-            roe_seri = [safe_float(engine.quarters[d].get(kod,{}).get(C_ROE,""))
-                        for d in donems[-6:]]
-            gecerli = [r for r in roe_seri if r is not None]
-            if len(gecerli) >= 3 and gecerli[-1] > gecerli[0]:
-                yaklasan_list.append({'kod':kod,'sektor':sektor,'son_roe':son_roe,
-                                       'pd_val':pd_val})
+    for lst in [istikrar_list, donus_list, alti_list, ustu_list]:
+        lst.sort(key=lambda x: x.get("son_roe") or 0, reverse=True)
 
-    istikrar_list.sort(key=lambda x: x['son_roe'], reverse=True)
-    donus_list.sort(key=lambda x: x['son_roe'], reverse=True)
-    yaklasan_list.sort(key=lambda x: x['son_roe'], reverse=True)
+    st.markdown(
+        f"<div class='mrow'>"
+        f"<div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(istikrar_list)}</div>"
+        f"<div class='mc-lbl'>Pirlanta</div></div>"
+        f"<div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(donus_list)}</div>"
+        f"<div class='mc-lbl'>Donus Sinyali</div></div>"
+        f"<div class='mc'><div class='mc-num' style='color:#F87171'>{len(alti_list)}</div>"
+        f"<div class='mc-lbl'>%30 Altinda</div></div>"
+        f"<div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(ustu_list)}</div>"
+        f"<div class='mc-lbl'>%30 Ustunde</div></div>"
+        f"</div>", unsafe_allow_html=True)
 
-    # Ozet metrikler
-    st.markdown(f"""<div class='mrow'>
-    <div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(istikrar_list)}</div>
-      <div class='mc-lbl'>Pirlanta (Hic Dusmedi)</div></div>
-    <div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(donus_list)}</div>
-      <div class='mc-lbl'>Donus Sinyali</div></div>
-    <div class='mc mc-yellow'><div class='mc-num' style='color:#FCD34D'>{len(yaklasan_list)}</div>
-      <div class='mc-lbl'>%30'a Yaklasan</div></div>
-    </div>""", unsafe_allow_html=True)
-
-    tab_ist, tab_don, tab_yak = st.tabs([
+    tab_ist, tab_don, tab_alt, tab_ust = st.tabs([
         f"\U0001f48e Pirlanta ({len(istikrar_list)})",
         f"\U0001f504 Donus Sinyali ({len(donus_list)})",
-        f"\U0001f4c8 %30'a Yaklasan ({len(yaklasan_list)})"
+        f"\U0001f534 %30 Altinda ({len(alti_list)})",
+        f"\U0001f7e2 %30 Ustunde ({len(ustu_list)})",
     ])
 
-    def roe_tablo(liste, ekstra_col="", dl_key="roe_dl"):
+    def roe_tablo(liste, mod="", dl_key="roe_dl"):
         if not liste:
             st.info("Bu kategoride hisse yok.")
             return
-        import pandas as _pd
+        import pandas as _pd2
         satirlar = []
         for r in liste:
-            satir = {'Kod': r['kod'], 'Sektor': r['sektor'],
-                     'Son ROE%': round(r['son_roe'],1) if r.get('son_roe') else None,
-                     'PD': fmt_milyon(r['pd_val'])}
-            if ekstra_col == '30+ Donem': satir[ekstra_col] = r.get('son_kac')
-            elif ekstra_col == 'Poz. Donem': satir[ekstra_col] = r.get('kac_poz')
+            satir = {"Kod": r["kod"], "Sektor": r["sektor"],
+                     "Son ROE%": round(r["son_roe"],1) if r.get("son_roe") else None,
+                     "PD": fmt_milyon(r["pd_val"])}
+            if mod == "ist": satir["30+D"] = r.get("son_kac")
+            elif mod == "don": satir["Poz.D"] = r.get("kac_poz")
+            elif mod == "ust": satir["30+D"] = r.get("son_kac")
             satirlar.append(satir)
-        df = _pd.DataFrame(satirlar)
+        df = _pd2.DataFrame(satirlar)
         st.dataframe(df, hide_index=True, use_container_width=True,
                      height=min(40+len(liste)*35, 500))
         st.download_button("\u2b07\ufe0f Excel Indir",
@@ -1540,26 +1535,20 @@ elif page == "\U0001f504 ROE Tarayici":
             key=dl_key)
 
     with tab_ist:
-        st.markdown("""<div style='background:#0A1C0A;border:1px solid #166534;
-        border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
-        Tum veri gecmisinde ROE hic %30 altina dusmemis hisseler. GXSMODUJ pirlanta formulu.
-        </div>""", unsafe_allow_html=True)
-        roe_tablo(istikrar_list, '30+ Donem', 'roe_dl_ist')
+        st.markdown("<div style='background:#0A1C0A;border:1px solid #166534;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Tum veri gecmisinde ROE hic %30 altina dusmemis hisseler. GXSMODUJ pirlanta formulu.</div>", unsafe_allow_html=True)
+        roe_tablo(istikrar_list, "ist", "roe_dl_ist")
 
     with tab_don:
-        st.markdown("""<div style='background:#0A1020;border:1px solid #1E3A8A;
-        border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
-        Son 1-2 donemde ROE negatiften pozitife gecen hisseler. Backtest: ort 22.8x, %9 zarar.
-        2018-2020 araliginda bu sinyal SIFIR zarar uretemistir.
-        </div>""", unsafe_allow_html=True)
-        roe_tablo(donus_list, 'Poz. Donem', 'roe_dl_don')
+        st.markdown("<div style='background:#0A1020;border:1px solid #1E3A8A;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son 1-2 donemde ROE negatiften pozitife gecen hisseler. Backtest: ort 22.8x, %9 zarar.</div>", unsafe_allow_html=True)
+        roe_tablo(donus_list, "don", "roe_dl_don")
 
-    with tab_yak:
-        st.markdown("""<div style='background:#1C1208;border:1px solid #92400E;
-        border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>
-        ROE yukseliyor ve %15-30 bandinda. Henuz %30 esigine gelmemis, takipte tutulabilir.
-        </div>""", unsafe_allow_html=True)
-        roe_tablo(yaklasan_list, '', 'roe_dl_yak')
+    with tab_alt:
+        st.markdown("<div style='background:#1A0707;border:1px solid #7F1D1D;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son donemde ROE %30 altinda olan hisseler — henuz esige gelmemis.</div>", unsafe_allow_html=True)
+        roe_tablo(alti_list, "", "roe_dl_alt")
+
+    with tab_ust:
+        st.markdown("<div style='background:#0A1C0A;border:1px solid #166534;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son donemde ROE %30 ve uzeri olan hisseler.</div>", unsafe_allow_html=True)
+        roe_tablo(ustu_list, "ust", "roe_dl_ust")
 
 # SAYFA 4: TAKİP LİSTESİ
 # ════════════════════════════════════════════════════════════════════════════
