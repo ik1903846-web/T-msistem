@@ -889,14 +889,20 @@ elif page == "\U0001f4ca Detay Analizi":
     kesisim   = [r["kod"] for r in engine.kesisim_tara(yil)]
     fark_list = [r["kod"] for r in engine.fark_tara()]
     geri_list = [r["kod"] for r in engine.geri_tara(yil)]
-    tum_liste = sorted(set(kesisim + fark_list + geri_list))
+    bebek_kodlar = [r['kod'] for r in engine.bebek_tara() if r['puan']>=50]
+    # Oncelik: Kesisim > Bebek > FARK > GERI — kendi icinde alfabetik
+    def kategori_sirasi(k):
+        if k in kesisim: return (0, k)
+        if k in bebek_kodlar: return (1, k)
+        if k in fark_list: return (2, k)
+        return (3, k)
+    tum_liste = sorted(set(kesisim + fark_list + geri_list + bebek_kodlar), key=kategori_sirasi)
 
     c1,c2 = st.columns([2,1])
     with c1:
         if not tum_liste:
             st.warning("Analiz icin once tarama yapilmali — veri yukle."); st.stop()
         varsayilan = kesisim[0] if kesisim else tum_liste[0]
-        bebek_kodlar = [r['kod'] for r in engine.bebek_tara() if r['puan']>=50]
         def sec_etiket(k):
             if k in kesisim:     return f"🎯 {k}  ← Kesisim (FARK+GERI)"
             if k in bebek_kodlar: return f"👶 {k}  ← Bebek Hisse"
@@ -1168,11 +1174,22 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:16px;margin-bottom:8px\">"
                 "\U0001f4ca Kat Buyume Tablosu</h3>", unsafe_allow_html=True)
-    st.markdown("<p style=\"font-size:11px;color:#475569;margin-bottom:14px\">"
-                "Ilk pozitif degerden son degere buyume. GXSMODUJ varlik analizi cercevesi.</p>",
-                unsafe_allow_html=True)
 
-    kat_tablo = da.kat_buyume_tablosu()
+    kat_c1, kat_c2 = st.columns([3,3])
+    with kat_c1:
+        st.markdown("<p style=\"font-size:11px;color:#475569;margin:4px 0 8px\">"
+                    "Ilk pozitif degerden son degere buyume. GXSMODUJ varlik analizi cercevesi.</p>",
+                    unsafe_allow_html=True)
+    with kat_c2:
+        kat_n = st.slider("", 2, toplam_donem, toplam_donem, key="sl_kat",
+                           format="%d donem", label_visibility="collapsed")
+
+    # Engine'i secili donem araligina gore yeniden olustur
+    kat_donems = engine.sorted_donems[-kat_n:]
+    kat_quarters = {d: engine.quarters[d] for d in kat_donems}
+    kat_eng = UnifiedEngine(kat_quarters)
+    kat_da = DerinAnaliz(kat_eng, secilen)
+    kat_tablo = kat_da.kat_buyume_tablosu()
     col_tbl, col_bar = st.columns([1, 2])
 
     with col_tbl:
