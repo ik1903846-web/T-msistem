@@ -50,6 +50,21 @@ p, li { color:#94A3B8 !important; }
 .ph-title { font-size:24px; font-weight:800; color:#E2E8F0; margin:0; letter-spacing:-0.5px; }
 .ph-sub { font-size:12px; color:#475569; margin-top:4px; }
 
+/* ── Hisse butonlari ── */
+div[data-testid="stButton"] button[kind="secondary"] {
+    font-size: 11px !important;
+    padding: 3px 4px !important;
+    height: 28px !important;
+    font-weight: 600 !important;
+    background: #0D1926 !important;
+    border: 1px solid #1E3448 !important;
+    color: #38BDF8 !important;
+}
+div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background: #1E3A5F !important;
+    border-color: #38BDF8 !important;
+}
+
 /* ── Metrik kartlar ── */
 .mrow { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
 .mc { flex:1; min-width:90px; background:#0D1926; border:1px solid #0F2040;
@@ -486,11 +501,12 @@ if page == "\U0001f50d FARK Scanner":
             file_name=f"FARK_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 3px'>Detay icin hisse koduna tikla:</p>", unsafe_allow_html=True)
-        btn_cols = st.columns(min(len(goster), 8))
-        for i, r in enumerate(goster[:16]):
-            with btn_cols[i % 8]:
-                if st.button(r['kod'], key=f"fark_btn_{r['kod']}", use_container_width=True):
+        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 2px'>📊 Detay icin tikla:</p>", unsafe_allow_html=True)
+        btn_cols = st.columns(6)
+        for i, r in enumerate(goster[:18]):
+            with btn_cols[i % 6]:
+                if st.button(r['kod'], key=f"fark_btn_{r['kod']}", use_container_width=True,
+                              help=f"{r['sektor']} · Puan:{r['puan']}"):
                     git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -622,11 +638,12 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
             file_name=f"GERI_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 3px'>Detay icin hisse koduna tikla:</p>", unsafe_allow_html=True)
-        btn_cols = st.columns(min(len(goster), 8))
-        for i, r in enumerate(goster[:16]):
-            with btn_cols[i % 8]:
-                if st.button(r['kod'], key=f"geri_btn_{r['kod']}", use_container_width=True):
+        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 2px'>📊 Detay icin tikla:</p>", unsafe_allow_html=True)
+        btn_cols = st.columns(6)
+        for i, r in enumerate(goster[:18]):
+            with btn_cols[i % 6]:
+                if st.button(r['kod'], key=f"geri_btn_{r['kod']}", use_container_width=True,
+                              help=f"{r['sektor']} · Puan:{r['puan']}"):
                     git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1560,11 +1577,12 @@ elif page == "\U0001f504 ROE Tarayici":
             file_name=f"ROE_{dl_key}_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=dl_key)
-        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 3px'>Detay icin hisse koduna tikla:</p>", unsafe_allow_html=True)
-        btn_cols2 = st.columns(min(len(liste), 8))
-        for i, r in enumerate(liste[:16]):
-            with btn_cols2[i % 8]:
-                if st.button(r['kod'], key=f"{dl_key}_btn_{r['kod']}", use_container_width=True):
+        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 2px'>📊 Detay icin tikla:</p>", unsafe_allow_html=True)
+        btn_cols2 = st.columns(6)
+        for i, r in enumerate(liste[:18]):
+            with btn_cols2[i % 6]:
+                if st.button(r['kod'], key=f"{dl_key}_btn_{r['kod']}", use_container_width=True,
+                              help=r.get('sektor','')):
                     git_detay(r['kod'])
 
     with tab_ist:
