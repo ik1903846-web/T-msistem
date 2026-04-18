@@ -916,10 +916,32 @@ elif page == "\U0001f4ca Detay Analizi":
 
     da = DerinAnaliz(engine, secilen)
     deger_kart = da.deger_kart()
-    st.markdown("<hr>", unsafe_allow_html=True)
 
-    # ── Degerleme Karti ──────────────────────────────────────────────────────
-    st.markdown("<h3 style=\"color:#E2E8F0;font-size:16px;margin-bottom:12px\">"
+    # ── Dönem Seçici ─────────────────────────────────────────────────────────
+    st.markdown("<hr>", unsafe_allow_html=True)
+    toplam_donem = len(engine.sorted_donems)
+    donem_secenekleri = {}
+    for n in [4, 8, 12, 16, 20, 24, 28, 32]:
+        if n <= toplam_donem:
+            donem_secenekleri[f"Son {n} donem"] = n
+    donem_secenekleri[f"Tumu ({toplam_donem})"] = toplam_donem
+
+    dc1, dc2 = st.columns([2,4])
+    with dc1:
+        secili_donem_lbl = st.selectbox(
+            "Grafik Periyodu",
+            list(donem_secenekleri.keys()),
+            index=min(2, len(donem_secenekleri)-1)
+        )
+    secili_donem_n = donem_secenekleri[secili_donem_lbl]
+    donem_filtre = engine.sorted_donems[-secili_donem_n:]
+
+    # DerinAnaliz icin filtrelenmiş seri fonksiyonu
+    def seri_filtreli(seri_tum):
+        return [s for s in seri_tum if s['donem'] in [f"{d[:4]}/{d[4:]}" for d in donem_filtre]]
+
+    # ── Degerleme Karti (2'li satir) ─────────────────────────────────────────
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
                 "\U0001f4ca Degerleme Pozisyonu — Hisse vs Sektor Medyani</h3>",
                 unsafe_allow_html=True)
 
@@ -932,39 +954,46 @@ elif page == "\U0001f4ca Detay Analizi":
         'Piotroski':  'Finansal saglik 0-9 — 7+ = guclu',
         'VAFOK Mj':  'VAFOK marji — yuksek = nakit guclu',
     }
-    cols = st.columns(len(deger_kart))
-    for i,(m,col) in enumerate(zip(deger_kart,cols)):
-        if m["durum"] == "veri_yok":
-            renk,ico,bg,brd = "#475569","-","#0D1926","#1E3448"
-        elif m["durum"] == "iyi":
-            renk,ico,bg,brd = "#4ADE80","\u2191","#0A1C0F","#166534"
-        else:
-            renk,ico,bg,brd = "#F87171","\u2193","#1C0A0A","#7F1D1D"
+    # 2'li satirlar halinde goster
+    for satir_idx in range(0, len(deger_kart), 3):
+      satir = deger_kart[satir_idx:satir_idx+3]
+      cols = st.columns(3)
+      for i,(m,col) in enumerate(zip(satir,cols)):
+          if m["durum"] == "veri_yok":
+              renk,ico,bg,brd = "#475569","-","#0D1926","#1E3448"
+          elif m["durum"] == "iyi":
+              renk,ico,bg,brd = "#4ADE80","\u2191","#0A1C0F","#166534"
+          else:
+              renk,ico,bg,brd = "#F87171","\u2193","#1C0A0A","#7F1D1D"
 
-        hisse_fmt  = f"{m['hisse']:.1f}"   if m["hisse"]  is not None else "-"
-        sektor_fmt = f"{m['sektor']:.1f}"  if m["sektor"] is not None else "-"
-        fark_fmt   = f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ""
-        aciklama   = METRIK_ACIK.get(m["isim"], "")
-        if m["durum"] == "iyi":
-            kiyasla = "Sek. ort. \u00fcstunde \u2713" if m["yuksek_iyi"] else "Sek. ort. altinda \u2713"
-        elif m["durum"] == "kotu":
-            kiyasla = "Sek. ort. altinda" if m["yuksek_iyi"] else "Sek. ort. \u00fcstunde"
-        else:
-            kiyasla = ""
+          hisse_fmt  = f"{m['hisse']:.1f}"   if m["hisse"]  is not None else "-"
+          sektor_fmt = f"{m['sektor']:.1f}"  if m["sektor"] is not None else "-"
+          fark_fmt   = f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ""
+          aciklama   = METRIK_ACIK.get(m["isim"], "")
+          if m["durum"] == "iyi":
+              kiyasla = "Sek. ort. \u00fcstunde \u2713" if m["yuksek_iyi"] else "Sek. ort. altinda \u2713"
+          elif m["durum"] == "kotu":
+              kiyasla = "Sek. ort. altinda" if m["yuksek_iyi"] else "Sek. ort. \u00fcstunde"
+          else:
+              kiyasla = ""
 
-        col.markdown(
-            "<div style='background:" + bg + ";border:1px solid " + brd + ";"
-            "border-radius:8px;padding:8px 5px;text-align:center'>"
-            "<div style='font-size:9px;color:#475569;text-transform:uppercase;"
-            "letter-spacing:1px;margin-bottom:3px'>" + m["isim"] + "</div>"
-            "<div style='font-size:18px;font-weight:900;color:" + renk + ";line-height:1.1'>" + hisse_fmt + "</div>"
-            "<div style='font-size:9px;color:#64748B;margin-top:2px'>Sek:" + sektor_fmt + " " + ico + fark_fmt + "</div>"
-            "<div style='font-size:8px;color:" + renk + ";margin-top:1px'>" + kiyasla + "</div>"
-            "<div style='font-size:8px;color:#334155;margin-top:3px;border-top:1px solid #0F2040;"
-            "padding-top:3px'>" + aciklama + "</div>"
-            "</div>",
-            unsafe_allow_html=True
-        )
+          col.markdown(
+              "<div style='background:" + bg + ";border:1px solid " + brd + ";"
+              "border-radius:8px;padding:12px 10px;'>"
+              "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:6px'>"
+              "<span style='font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:1px'>" + m["isim"] + "</span>"
+              "<span style='font-size:9px;color:" + renk + "'>" + kiyasla + "</span></div>"
+              "<div style='display:flex;justify-content:space-between;align-items:flex-end'>"
+              "<div><div style='font-size:24px;font-weight:900;color:" + renk + ";line-height:1'>" + hisse_fmt + "</div>"
+              "<div style='font-size:9px;color:#475569;margin-top:2px'>" + aciklama + "</div></div>"
+              "<div style='text-align:right'>"
+              "<div style='font-size:11px;color:#475569'>Sektor</div>"
+              "<div style='font-size:16px;font-weight:700;color:#64748B'>" + sektor_fmt + "</div>"
+              "<div style='font-size:10px;font-weight:700;color:" + renk + "'>" + ico + fark_fmt + "</div>"
+              "</div></div>"
+              "</div>",
+              unsafe_allow_html=True
+          )
 
     # Kac metrikte iyi
     iyi_say = sum(1 for m in deger_kart if m["durum"]=="iyi")
@@ -1024,10 +1053,12 @@ elif page == "\U0001f4ca Detay Analizi":
         )
         return fig
 
-    # EFK vs Sektor
-    efk_h = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
-    efk_s = da.sektor_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
-    # Milyon formatinda
+    # EFK vs Sektor — dönem filtreli
+    donem_fmt_list = [f"{d[:4]}/{d[4:]}" for d in donem_filtre]
+    efk_h_tum = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
+    efk_s_tum = da.sektor_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
+    efk_h = [s for s in efk_h_tum if s['donem'] in donem_fmt_list]
+    efk_s = [s for s in efk_s_tum if s['donem'] in donem_fmt_list]
     for item in efk_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
     for item in efk_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
 
@@ -1036,8 +1067,10 @@ elif page == "\U0001f4ca Detay Analizi":
         st.plotly_chart(cizgi_grafik(
             "Esas Faaliyet Kari (Milyon TL)", efk_h, efk_s, "M"), use_container_width=True)
     with col2:
-        pd_h = da.pd_seri()
-        pd_s = da.sektor_seri("Piyasa De\u011feri")
+        pd_h_tum = da.pd_seri()
+        pd_s_tum = da.sektor_seri("Piyasa De\u011feri")
+        pd_h = [s for s in pd_h_tum if s['donem'] in donem_fmt_list]
+        pd_s = [s for s in pd_s_tum if s['donem'] in donem_fmt_list]
         for item in pd_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         for item in pd_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         st.plotly_chart(cizgi_grafik(
@@ -1045,12 +1078,14 @@ elif page == "\U0001f4ca Detay Analizi":
 
     col3, col4 = st.columns(2)
     with col3:
-        pddd_h = da.hisse_seri("Piyasa De\u011feri / Defter De\u011feri")
-        pddd_s = da.sektor_seri("Piyasa De\u011feri / Defter De\u011feri")
+        pddd_h = [s for s in da.hisse_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in donem_fmt_list]
+        pddd_s = [s for s in da.sektor_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in donem_fmt_list]
         st.plotly_chart(cizgi_grafik("PD/DD Trendi", pddd_h, pddd_s), use_container_width=True)
     with col4:
-        ns_h = da.hisse_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
-        ns_s = da.sektor_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
+        ns_h_tum = da.hisse_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
+        ns_s_tum = da.sektor_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
+        ns_h = [s for s in ns_h_tum if s['donem'] in donem_fmt_list]
+        ns_s = [s for s in ns_s_tum if s['donem'] in donem_fmt_list]
         for item in ns_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         for item in ns_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         st.plotly_chart(cizgi_grafik(
@@ -1066,8 +1101,8 @@ elif page == "\U0001f4ca Detay Analizi":
                 "Mavi cizgi sarin uzegindeyse fiyat geri kalmis demektir.</p>",
                 unsafe_allow_html=True)
 
-    efk_raw = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
-    pd_raw  = da.pd_seri()
+    efk_raw = [s for s in da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)") if s['donem'] in donem_fmt_list]
+    pd_raw  = [s for s in da.pd_seri() if s['donem'] in donem_fmt_list]
     donems  = [s["donem"] for s in efk_raw]
 
     efk_vals = [s["deger"] for s in efk_raw]
