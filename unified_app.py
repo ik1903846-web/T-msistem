@@ -132,17 +132,17 @@ for k,v in [('quarters',{}),('engine',None),('son_donem',None),('son_yukleme',No
 
 def df_to_excel_bytes(df):
     import io
+    import openpyxl
     buf = io.BytesIO()
-    with __import__('openpyxl').Workbook() as wb:
-        ws = wb.active
-        # Header
-        for ci, col in enumerate(df.columns, 1):
-            ws.cell(1, ci, col)
-        # Data
-        for ri, row in enumerate(df.itertuples(index=False), 2):
-            for ci, val in enumerate(row, 1):
-                ws.cell(ri, ci, val)
-        wb.save(buf)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for ci, col in enumerate(df.columns, 1):
+        ws.cell(1, ci, str(col))
+    for ri, row in enumerate(df.itertuples(index=False), 2):
+        for ci, val in enumerate(row, 1):
+            ws.cell(ri, ci, val if val is not None else '')
+    wb.save(buf)
+    buf.seek(0)
     return buf.getvalue()
 
 def donem_fmt(d):
