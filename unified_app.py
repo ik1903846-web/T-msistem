@@ -735,13 +735,7 @@ elif page == "\U0001f476 Bebek Hisse":
       <div class='mc-lbl'>Toplam Gecti</div></div>
     </div>""", unsafe_allow_html=True)
 
-    # Arama + Filtreler
-    arama_col, bos = st.columns([1.5, 4.5])
-    with arama_col:
-        arama = st.text_input("\U0001f50d Hisse Ara", placeholder="GLRYH, HDFGS...",
-                               label_visibility="collapsed")
-
-    c1,c2,c3,c4 = st.columns([1.5,2,1.5,1.5])
+    c1,c2,c3 = st.columns([1.5,2,1.5])
     with c1:
         kf = st.multiselect("Karar",["KARINCA GUCLU","BEBEK ADAY","IZLE","ZAYIF"],
                              default=["KARINCA GUCLU","BEBEK ADAY","IZLE"])
@@ -752,7 +746,6 @@ elif page == "\U0001f476 Bebek Hisse":
                                       "FK/PD% \u2193","PD/DD \u2191","Marj% \u2193"])
     with c4:
         min_x = st.number_input("Min Potansiyel X", 0.0, 50.0, 0.0, 1.0)
-
     goster = [r for r in sonuclar if r['karar'] in kf]
     if arama: goster = [r for r in goster if arama.upper() in r['kod'].upper()]
     if sf: goster = [r for r in goster if r['sektor'] in sf]
@@ -899,15 +892,16 @@ elif page == "\U0001f4ca Detay Analizi":
         if not tum_liste:
             st.warning("Analiz icin once tarama yapilmali — veri yukle."); st.stop()
         varsayilan = kesisim[0] if kesisim else tum_liste[0]
+        bebek_kodlar = [r['kod'] for r in engine.bebek_tara() if r['puan']>=50]
+        def sec_etiket(k):
+            if k in kesisim:     return f"🎯 {k}  ← Kesisim (FARK+GERI)"
+            if k in bebek_kodlar: return f"👶 {k}  ← Bebek Hisse"
+            if k in fark_list:   return f"🔍 {k}  ← FARK"
+            return f"📉 {k}  ← GERI"
         secilen = st.selectbox(
-            "Hisse Sec",
-            tum_liste,
+            "Hisse Sec", tum_liste,
             index=tum_liste.index(varsayilan),
-            format_func=lambda k: (
-                f"\U0001f3af {k} (Kesisim)" if k in kesisim else
-                f"\U0001f50d {k} (FARK)" if k in fark_list else
-                f"\U0001f4c9 {k} (GERI)"
-            )
+            format_func=sec_etiket
         )
     with c2:
         sektor = engine.son_data.get(secilen,{}).get("Hisse Sekt\u00f6r","")
@@ -929,29 +923,48 @@ elif page == "\U0001f4ca Detay Analizi":
                 "\U0001f4ca Degerleme Pozisyonu — Hisse vs Sektor Medyani</h3>",
                 unsafe_allow_html=True)
 
+    METRIK_ACIK = {
+        'FK/PD%':    'EFK / PD — yuksek = ucuz',
+        'PD/DD':     'Piyasa / Defter — dusuk = deger alti',
+        'F/K':       'Fiyat / Kazanc — dusuk = ucuz',
+        'ROE%':      'Ozsermaye karliligi — yuksek = verimli',
+        'Marj%':     'Faaliyet marji — yuksek = kaliteli',
+        'Piotroski':  'Finansal saglik 0-9 — 7+ = guclu',
+        'VAFOK Mj':  'VAFOK marji — yuksek = nakit guclu',
+    }
     cols = st.columns(len(deger_kart))
     for i,(m,col) in enumerate(zip(deger_kart,cols)):
         if m["durum"] == "veri_yok":
-            renk,ico,bg,brd = "#475569","—","#0D1926","#1E3448"
+            renk,ico,bg,brd = "#475569","-","#0D1926","#1E3448"
         elif m["durum"] == "iyi":
             renk,ico,bg,brd = "#4ADE80","\u2191","#0A1C0F","#166534"
         else:
             renk,ico,bg,brd = "#F87171","\u2193","#1C0A0A","#7F1D1D"
 
-        hisse_fmt = f"{m['hisse']:.1f}" if m["hisse"] is not None else "-"
-        sektor_fmt = f"{m['sektor']:.1f}" if m["sektor"] is not None else "-"
-        fark_fmt = (f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else "")
+        hisse_fmt  = f"{m['hisse']:.1f}"   if m["hisse"]  is not None else "-"
+        sektor_fmt = f"{m['sektor']:.1f}"  if m["sektor"] is not None else "-"
+        fark_fmt   = f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else ""
+        aciklama   = METRIK_ACIK.get(m["isim"], "")
+        if m["durum"] == "iyi":
+            kiyasla = "Sek. ort. \u00fcstunde \u2713" if m["yuksek_iyi"] else "Sek. ort. altinda \u2713"
+        elif m["durum"] == "kotu":
+            kiyasla = "Sek. ort. altinda" if m["yuksek_iyi"] else "Sek. ort. \u00fcstunde"
+        else:
+            kiyasla = ""
 
-        col.markdown(f"""<div style='background:{bg};border:1px solid {brd};
-        border-radius:10px;padding:14px;text-align:center'>
-        <div style='font-size:9px;color:#475569;text-transform:uppercase;
-        letter-spacing:1px;margin-bottom:6px'>{m["isim"]}</div>
-        <div style='font-size:22px;font-weight:900;color:{renk}'>{hisse_fmt}</div>
-        <div style='font-size:10px;color:#475569;margin-top:4px'>
-        Sektor: {sektor_fmt}</div>
-        <div style='font-size:11px;font-weight:700;color:{renk};margin-top:2px'>
-        {ico} {fark_fmt}</div>
-        </div>""", unsafe_allow_html=True)
+        col.markdown(
+            "<div style='background:" + bg + ";border:1px solid " + brd + ";"
+            "border-radius:8px;padding:8px 5px;text-align:center'>"
+            "<div style='font-size:9px;color:#475569;text-transform:uppercase;"
+            "letter-spacing:1px;margin-bottom:3px'>" + m["isim"] + "</div>"
+            "<div style='font-size:18px;font-weight:900;color:" + renk + ";line-height:1.1'>" + hisse_fmt + "</div>"
+            "<div style='font-size:9px;color:#64748B;margin-top:2px'>Sek:" + sektor_fmt + " " + ico + fark_fmt + "</div>"
+            "<div style='font-size:8px;color:" + renk + ";margin-top:1px'>" + kiyasla + "</div>"
+            "<div style='font-size:8px;color:#334155;margin-top:3px;border-top:1px solid #0F2040;"
+            "padding-top:3px'>" + aciklama + "</div>"
+            "</div>",
+            unsafe_allow_html=True
+        )
 
     # Kac metrikte iyi
     iyi_say = sum(1 for m in deger_kart if m["durum"]=="iyi")
