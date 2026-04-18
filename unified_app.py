@@ -1200,20 +1200,26 @@ elif page == "\U0001f4ca Detay Analizi":
                 renkler.append("#F87171" if i["kat"]>=5 else "#FCD34D" if i["kat"]>=2 else "#4ADE80")
             else:
                 renkler.append("#4ADE80" if i["kat"]>=5 else "#FCD34D" if i["kat"]>=2 else "#F87171")
+        max_val = max(kat_vals) if kat_vals else 1
+        text_poz = ["inside" if v > max_val*0.4 else "outside" for v in kat_vals]
         fig_kat = go.Figure(go.Bar(
             x=kat_vals, y=kalemler, orientation="h",
             marker_color=renkler,
             text=[f"{v}x" for v in kat_vals],
-            textposition="outside", textfont=dict(color="#94A3B8",size=11),
-            hovertemplate="%{y}: %{x}x<extra></extra>"
+            textposition=text_poz,
+            insidetextfont=dict(color="#080E17", size=11),
+            outsidetextfont=dict(color="#94A3B8", size=11),
+            hovertemplate="%{y}: %{x:.1f}x<extra></extra>",
+            cliponaxis=False
         ))
         fig_kat.update_layout(
             paper_bgcolor=GRAFIK_BG, plot_bgcolor=GRAFIK_BG,
-            font=dict(color="#475569",size=11),
-            margin=dict(l=10,r=60,t=10,b=10),
-            height=max(200,len(kalemler)*32),
-            xaxis=dict(gridcolor=GRAFIK_GRID,title="Kat Buyume"),
-            yaxis=dict(gridcolor=GRAFIK_GRID,autorange="reversed"),
+            font=dict(color="#475569", size=11),
+            margin=dict(l=10, r=80, t=10, b=10),
+            height=max(200, len(kalemler)*34),
+            xaxis=dict(gridcolor=GRAFIK_GRID, title="Kat Buyume",
+                       range=[0, max_val*1.2]),
+            yaxis=dict(gridcolor=GRAFIK_GRID, autorange="reversed"),
             showlegend=False
         )
         st.plotly_chart(fig_kat, use_container_width=True)
