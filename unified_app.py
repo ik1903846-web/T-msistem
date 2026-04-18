@@ -50,21 +50,6 @@ p, li { color:#94A3B8 !important; }
 .ph-title { font-size:24px; font-weight:800; color:#E2E8F0; margin:0; letter-spacing:-0.5px; }
 .ph-sub { font-size:12px; color:#475569; margin-top:4px; }
 
-/* ── Hisse butonlari ── */
-div[data-testid="stButton"] button[kind="secondary"] {
-    font-size: 11px !important;
-    padding: 3px 4px !important;
-    height: 28px !important;
-    font-weight: 600 !important;
-    background: #0D1926 !important;
-    border: 1px solid #1E3448 !important;
-    color: #38BDF8 !important;
-}
-div[data-testid="stButton"] button[kind="secondary"]:hover {
-    background: #1E3A5F !important;
-    border-color: #38BDF8 !important;
-}
-
 /* ── Metrik kartlar ── */
 .mrow { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
 .mc { flex:1; min-width:90px; background:#0D1926; border:1px solid #0F2040;
@@ -142,7 +127,7 @@ hr { border-color:#0F2040 !important; }
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 for k,v in [('quarters',{}),('engine',None),('son_donem',None),('son_yukleme',None),
-             ('watchlist',{}),('geri_yil',3),('hisse_git',None),('aktif_sayfa',None)]:
+             ('watchlist',{}),('geri_yil',3)]:
     if k not in st.session_state: st.session_state[k]=v
 
 def df_to_excel_bytes(df):
@@ -171,17 +156,12 @@ def badge(k):
 
 KARAR_RENK = {'GUCLU ADAY':'#4ADE80','POTANSIYEL':'#FCD34D','ZAYIF':'#FB923C','ELENDI':'#F87171'}
 
-def git_detay(kod):
-    st.session_state.hisse_git = kod
-    st.session_state.aktif_sayfa = "\U0001f4ca Detay Analizi"
-    st.rerun()
-
 # ── SIDEBAR ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<div class='sb-brand'>BIST <span>ANALiZ</span></div>", unsafe_allow_html=True)
     st.markdown("<div class='sb-sub'>FARK · GERI · BEBEK · KESISIM</div>", unsafe_allow_html=True)
 
-    SAYFALAR = [
+    page = st.radio("", [
         "\U0001f50d FARK Scanner",
         "\U0001f4c9 GER\u0130 Taray\u0131c\u0131",
         "\U0001f3af Kesisim",
@@ -191,17 +171,7 @@ with st.sidebar:
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
-    ]
-    # Hisse tıklanınca Detay'a git
-    if st.session_state.aktif_sayfa:
-        baslangic = SAYFALAR.index(st.session_state.aktif_sayfa)
-        st.session_state.aktif_sayfa = None
-    else:
-        baslangic = 0
-    page = st.radio("", SAYFALAR,
-                    index=baslangic,
-                    label_visibility="collapsed",
-                    key="page_radio")
+    ], label_visibility="collapsed")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -443,48 +413,54 @@ if page == "\U0001f50d FARK Scanner":
                 f"{len(goster)} hisse · Donem: <b style='color:#94A3B8'>"
                 f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
 
-    # Baslik satiri
-    hc1,hc2,hc3,hc4,hc5,hc6,hc7 = st.columns([0.5,1.8,2.5,1,1,1,0.8])
-    for col,lbl in zip([hc1,hc2,hc3,hc4,hc5,hc6,hc7],
-                       ['\u2b50','Kod','Sektor','Puan','FK/PD%','PD/DD','Detay']):
-        col.markdown(f"<span style='font-size:10px;color:#475569;font-weight:600'>{lbl}</span>",
-                     unsafe_allow_html=True)
+    tablo = pd.DataFrame([{
+        '\u2b50':       r['kod'] in st.session_state.watchlist,
+        'Kod':          r['kod'],
+        'Sektor':       r['sektor'],
+        'Puan':         int(r['puan']),
+        'Karar':        r['karar'],
+        'A':            r['A'], 'B': r['B'], 'C': r['C'], 'D': r['D'],
+        'Faal.Kari':    fmt_milyon(r.get('fk')),
+        'Piy.Degeri':   fmt_milyon(r.get('pd')),
+        'PD/DD':        round(r['pddd'],2) if r.get('pddd') else None,
+        'FK/PD%':       round(r['fkpd'],1) if r.get('fkpd') else None,
+        'Marj%':        round(r['marj'],1) if r.get('marj') else None,
+        'Buyume%':      round(r.get('buyume',0),0) if r.get('buyume') is not None else None,
+        'ROE 30+D':     roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0],
+    } for r in goster])
 
-    for r in goster:
-        rc1,rc2,rc3,rc4,rc5,rc6,rc7 = st.columns([0.5,1.8,2.5,1,1,1,0.8])
-        kod = r['kod']
+    edited = st.data_editor(tablo, column_config={
+        '\u2b50':       st.column_config.CheckboxColumn('\u2b50',width='small'),
+        'Kod':          st.column_config.TextColumn('Kod',width='small'),
+        'Sektor':       st.column_config.TextColumn('Sektor',width='medium'),
+        'Puan':         st.column_config.NumberColumn('Puan',width='small',format='%d'),
+        'Karar':        st.column_config.TextColumn('Karar',width='medium'),
+        'A':            st.column_config.NumberColumn('A',width='small'),
+        'B':            st.column_config.NumberColumn('B',width='small'),
+        'C':            st.column_config.NumberColumn('C',width='small'),
+        'D':            st.column_config.NumberColumn('D',width='small'),
+        'Faal.Kari':    st.column_config.TextColumn('Faal.Kari',width='small'),
+        'Piy.Degeri':   st.column_config.TextColumn('Piy.Degeri',width='small'),
+        'PD/DD':        st.column_config.NumberColumn('PD/DD',width='small',format='%.2f'),
+        'FK/PD%':       st.column_config.NumberColumn('FK/PD%',width='small',format='%.1f'),
+        'Marj%':        st.column_config.NumberColumn('Marj%',width='small',format='%.1f'),
+        'Buyume%':      st.column_config.NumberColumn('Buyume%',width='small',format='%.0f'),
+    }, disabled=[c for c in tablo.columns if c!='\u2b50'],
+    hide_index=True, use_container_width=True,
+    height=min(40+len(goster)*35,600), key='fark_tbl')
+
+    for i,row in edited.iterrows():
+        kod,istek = row['Kod'], row['\u2b50']
         in_wl = kod in st.session_state.watchlist
-        with rc1:
-            wl = st.checkbox("", value=in_wl, key=f"fwl_{kod}", label_visibility="collapsed")
-            if wl and not in_wl:
-                st.session_state.watchlist[kod] = {
-                    'puan':r['puan'],'karar':r['karar'],'sektor':r['sektor'],
-                    'sistem':'FARK','eklenme':datetime.now().strftime('%Y-%m-%d'),
-                    'donem':st.session_state.son_donem}
-                st.rerun()
-            elif not wl and in_wl:
-                del st.session_state.watchlist[kod]; st.rerun()
-        with rc2:
-            karar_renk = {'GUCLU ADAY':'#4ADE80','POTANSIYEL':'#FCD34D'}.get(r['karar'],'#94A3B8')
-            st.markdown(f"<span style='color:{karar_renk};font-weight:700;font-size:13px'>{kod}</span>",
-                        unsafe_allow_html=True)
-        with rc3:
-            st.markdown(f"<span style='color:#64748B;font-size:11px'>{r.get('sektor','')[:20]}</span>",
-                        unsafe_allow_html=True)
-        with rc4:
-            st.markdown(f"<span style='color:#E2E8F0;font-size:12px'>{int(r['puan'])}</span>",
-                        unsafe_allow_html=True)
-        with rc5:
-            fkpd = r.get('fkpd')
-            st.markdown(f"<span style='color:#38BDF8;font-size:12px'>{fkpd:.0f}%</span>" if fkpd else "-",
-                        unsafe_allow_html=True)
-        with rc6:
-            pddd = r.get('pddd')
-            st.markdown(f"<span style='color:#94A3B8;font-size:12px'>{pddd:.1f}</span>" if pddd else "-",
-                        unsafe_allow_html=True)
-        with rc7:
-            if st.button("\U0001f4ca", key=f"fd_{kod}"):
-                git_detay(kod)
+        if istek and not in_wl:
+            r = goster[i]
+            st.session_state.watchlist[kod] = {
+                'puan':r['puan'],'karar':r['karar'],'sektor':r['sektor'],
+                'sistem':'FARK','eklenme':datetime.now().strftime('%Y-%m-%d'),
+                'donem':st.session_state.son_donem}
+            st.toast(f"\u2b50 {kod} eklendi!",icon="\u2705"); st.rerun()
+        elif not istek and in_wl:
+            del st.session_state.watchlist[kod]; st.rerun()
 
     # Excel indir
     if goster:
@@ -495,15 +471,6 @@ if page == "\U0001f50d FARK Scanner":
             file_name=f"FARK_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        for r in goster:
-            fc1,fc2,fc3,fc4 = st.columns([2,3,1,1])
-            with fc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
-            with fc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
-            with fc3: st.markdown(f"<span style='color:#FCD34D;font-size:11px'>{r.get('puan','')}</span>", unsafe_allow_html=True)
-            with fc4:
-                if st.button("\U0001f4ca", key=f"fd_{r['kod']}", help="Detay Analizi"):
-                    git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 2: GERI TARAYICI
@@ -575,51 +542,65 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
                 f"{len(goster)} hisse · {yil}Y periyot · Donem: <b style='color:#94A3B8'>"
                 f"{donem_fmt(st.session_state.son_donem)}</b></p>", unsafe_allow_html=True)
 
-    # GERİ — Satır bazlı liste
-    gh1,gh2,gh3,gh4,gh5,gh6 = st.columns([0.5,1.8,2.5,1,1,0.8])
-    for col,lbl in zip([gh1,gh2,gh3,gh4,gh5,gh6],['\u2b50','Kod','Sektor','Puan','FK/PD%','Detay']):
-        col.markdown(f"<span style='font-size:10px;color:#475569;font-weight:600'>{lbl}</span>", unsafe_allow_html=True)
+    tablo = pd.DataFrame([{
+        '\u2b50':            r['kod'] in st.session_state.watchlist,
+        'Kod':               r['kod'],
+        'Sektor':            r['sektor'],
+        'Puan':              int(r['puan']),
+        'Karar':             r['karar'],
+        'F/K':               round(r['fk_oran'],1) if r.get('fk_oran') else None,
+        'PD/DD':             round(r['pddd'],2) if r.get('pddd') else None,
+        'FK/PD%':            round(r['fkpd'],1) if r.get('fkpd') else None,
+        f'EFK {yil}Y%':     round(r['efk_buy'],0) if r.get('efk_buy') is not None else None,
+        f'PD {yil}Y%':      round(r['pd_buy'],0) if r.get('pd_buy') is not None else None,
+        f'Satis {yil}Y%':   round(r['ns_buy'],0) if r.get('ns_buy') is not None else None,
+        'Fiyat Geride':      '\u2705' if r.get('fiyat_geride') else '\u274c',
+        'ROE%':              round(r['roe'],1) if r.get('roe') else None,
+        'ROE 30+D':          roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, r['kod'])[0],
+        'Piy.Degeri':        fmt_milyon(r.get('pd_val')),
+    } for r in goster])
 
-    import pandas as _gpd
-    geri_xls_rows = []
-    for r in goster:
-        kod = r['kod']
+    edited = st.data_editor(tablo, column_config={
+        '\u2b50':           st.column_config.CheckboxColumn('\u2b50',width='small'),
+        'Kod':               st.column_config.TextColumn('Kod',width='small'),
+        'Sektor':            st.column_config.TextColumn('Sektor',width='medium'),
+        'Puan':              st.column_config.NumberColumn('Puan',width='small',format='%d'),
+        'Karar':             st.column_config.TextColumn('Karar',width='medium'),
+        'F/K':               st.column_config.NumberColumn('F/K',width='small',format='%.1f'),
+        'PD/DD':             st.column_config.NumberColumn('PD/DD',width='small',format='%.2f'),
+        'FK/PD%':            st.column_config.NumberColumn('FK/PD%',width='small',format='%.1f'),
+        f'EFK {yil}Y%':     st.column_config.NumberColumn(f'EFK {yil}Y%',width='small',format='%.0f'),
+        f'PD {yil}Y%':      st.column_config.NumberColumn(f'PD {yil}Y%',width='small',format='%.0f'),
+        f'Satis {yil}Y%':   st.column_config.NumberColumn(f'Satis {yil}Y%',width='small',format='%.0f'),
+        'Fiyat Geride':      st.column_config.TextColumn('Fiyat Geride?',width='small'),
+        'ROE%':              st.column_config.NumberColumn('ROE%',width='small',format='%.1f'),
+        'ROE 30+D':          st.column_config.NumberColumn('ROE 30+D',width='small',format='%d'),
+        'Piy.Degeri':        st.column_config.TextColumn('Piy.Degeri',width='small'),
+    }, disabled=[c for c in tablo.columns if c!='\u2b50'],
+    hide_index=True, use_container_width=True,
+    height=min(40+len(goster)*35,600), key='geri_tbl')
+
+    for i,row in edited.iterrows():
+        kod,istek = row['Kod'], row['\u2b50']
         in_wl = kod in st.session_state.watchlist
-        gc1,gc2,gc3,gc4,gc5,gc6 = st.columns([0.5,1.8,2.5,1,1,0.8])
-        with gc1:
-            wl = st.checkbox("", value=in_wl, key=f"gwl_{kod}", label_visibility="collapsed")
-            if wl and not in_wl:
-                st.session_state.watchlist[kod] = {
-                    'puan':r['puan'],'karar':r['karar'],'sektor':r['sektor'],
-                    'sistem':'GERI','eklenme':datetime.now().strftime('%Y-%m-%d'),
-                    'donem':st.session_state.son_donem}
-                st.rerun()
-            elif not wl and in_wl:
-                del st.session_state.watchlist[kod]; st.rerun()
-        with gc2:
-            renk = '#4ADE80' if r.get('fiyat_geride') else '#94A3B8'
-            st.markdown(f"<span style='color:{renk};font-weight:700;font-size:13px'>{kod}</span>", unsafe_allow_html=True)
-        with gc3:
-            st.markdown(f"<span style='color:#64748B;font-size:11px'>{r.get('sektor','')[:20]}</span>", unsafe_allow_html=True)
-        with gc4:
-            st.markdown(f"<span style='color:#E2E8F0;font-size:12px'>{int(r['puan'])}</span>", unsafe_allow_html=True)
-        with gc5:
-            fkpd = r.get('fkpd')
-            st.markdown(f"<span style='color:#38BDF8;font-size:12px'>{fkpd:.0f}%</span>" if fkpd else "-", unsafe_allow_html=True)
-        with gc6:
-            if st.button("\U0001f4ca", key=f"gd_{kod}"):
-                git_detay(kod)
-        geri_xls_rows.append({'Kod':kod,'Sektor':r.get('sektor',''),'Puan':int(r['puan']),
-                               'FK/PD%':round(r['fkpd'],1) if r.get('fkpd') else None,
-                               'PD/DD':round(r['pddd'],2) if r.get('pddd') else None})
+        if istek and not in_wl:
+            r=goster[i]
+            st.session_state.watchlist[kod]={
+                'puan':r['puan'],'karar':r['karar'],'sektor':r['sektor'],
+                'sistem':'GERI','eklenme':datetime.now().strftime('%Y-%m-%d'),
+                'donem':st.session_state.son_donem}
+            st.toast(f"\u2b50 {kod} eklendi!",icon="\u2705"); st.rerun()
+        elif not istek and in_wl:
+            del st.session_state.watchlist[kod]; st.rerun()
 
-    if geri_xls_rows:
-        geri_df = _gpd.DataFrame(geri_xls_rows)
-        st.download_button("\u2b07\ufe0f Excel Indir",
-            data=df_to_excel_bytes(geri_df),
+    if goster:
+        xls_geri = tablo.drop(columns=['⭐'], errors='ignore')
+        st.download_button(
+            "⬇️ Listeyi Excel Olarak indir",
+            data=df_to_excel_bytes(xls_geri),
             file_name=f"GERI_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="geri_xls_dl")
+        )
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 3: KESİŞİM
@@ -912,17 +893,6 @@ elif page == "\U0001f476 Bebek Hisse":
             st.toast(f"\u2b50 {kod} eklendi!",icon="\u2705"); st.rerun()
         elif not istek and in_wl:
             del st.session_state.watchlist[kod]; st.rerun()
-
-    if goster:
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        for r in goster:
-            bc1,bc2,bc3,bc4 = st.columns([2,3,1,1])
-            with bc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
-            with bc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
-            with bc3: st.markdown(f"<span style='color:#FCD34D;font-size:11px'>{r.get('puan','')}</span>", unsafe_allow_html=True)
-            with bc4:
-                if st.button("📊", key=f"bd_{r['kod']}", help="Detay Analizi"):
-                    git_detay(r['kod'])
 
     # Potansiyel X Bar Grafigi
     if goster:
@@ -1563,14 +1533,6 @@ elif page == "\U0001f504 ROE Tarayici":
             file_name=f"ROE_{dl_key}_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=dl_key)
-        for r in liste:
-            rc1,rc2,rc3,rc4 = st.columns([2,3,2,1])
-            with rc1: st.markdown(f"<span style='color:#38BDF8;font-weight:700;font-size:13px'>{r['kod']}</span>", unsafe_allow_html=True)
-            with rc2: st.markdown(f"<span style='color:#475569;font-size:11px'>{r.get('sektor','')[:18]}</span>", unsafe_allow_html=True)
-            with rc3: st.markdown(f"<span style='color:#4ADE80;font-size:11px'>ROE:{r.get('son_roe',0):.0f}%</span>", unsafe_allow_html=True)
-            with rc4:
-                if st.button("\U0001f4ca", key=f"{dl_key}_d_{r['kod']}", help="Detay Analizi"):
-                    git_detay(r['kod'])
 
     with tab_ist:
         st.markdown("<div style='background:#0A1C0A;border:1px solid #166534;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Tum veri gecmisinde ROE hic %30 altina dusmemis hisseler. GXSMODUJ pirlanta formulu.</div>", unsafe_allow_html=True)
