@@ -501,12 +501,15 @@ if page == "\U0001f50d FARK Scanner":
             file_name=f"FARK_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 2px'>📊 Detay icin tikla:</p>", unsafe_allow_html=True)
-        btn_cols = st.columns(6)
-        for i, r in enumerate(goster[:18]):
-            with btn_cols[i % 6]:
-                if st.button(r['kod'], key=f"fark_btn_{r['kod']}", use_container_width=True,
-                              help=f"{r['sektor']} · Puan:{r['puan']}"):
+        # Kompakt detay butonlari
+        btn_html = "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:8px'>"
+        for r in goster[:24]:
+            btn_html += f"<span style='display:inline-block'></span>"
+        btn_html += "</div>"
+        cols_d = st.columns(8)
+        for i, r in enumerate(goster[:24]):
+            with cols_d[i % 8]:
+                if st.button(r['kod'], key=f"fark_btn_{r['kod']}"):
                     git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -638,12 +641,10 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
             file_name=f"GERI_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 2px'>📊 Detay icin tikla:</p>", unsafe_allow_html=True)
-        btn_cols = st.columns(6)
-        for i, r in enumerate(goster[:18]):
-            with btn_cols[i % 6]:
-                if st.button(r['kod'], key=f"geri_btn_{r['kod']}", use_container_width=True,
-                              help=f"{r['sektor']} · Puan:{r['puan']}"):
+        cols_d2 = st.columns(8)
+        for i, r in enumerate(goster[:24]):
+            with cols_d2[i % 8]:
+                if st.button(r['kod'], key=f"geri_btn_{r['kod']}"):
                     git_detay(r['kod'])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1577,12 +1578,10 @@ elif page == "\U0001f504 ROE Tarayici":
             file_name=f"ROE_{dl_key}_{st.session_state.son_donem}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=dl_key)
-        st.markdown("<p style='font-size:10px;color:#475569;margin:6px 0 2px'>📊 Detay icin tikla:</p>", unsafe_allow_html=True)
-        btn_cols2 = st.columns(6)
-        for i, r in enumerate(liste[:18]):
-            with btn_cols2[i % 6]:
-                if st.button(r['kod'], key=f"{dl_key}_btn_{r['kod']}", use_container_width=True,
-                              help=r.get('sektor','')):
+        cols_d4 = st.columns(8)
+        for i, r in enumerate(liste[:24]):
+            with cols_d4[i % 8]:
+                if st.button(r['kod'], key=f"{dl_key}_btn_{r['kod']}"):
                     git_detay(r['kod'])
 
     with tab_ist:
