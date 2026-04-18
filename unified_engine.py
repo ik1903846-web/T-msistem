@@ -117,7 +117,7 @@ def geri_karar(p): return fark_karar(p)
 def bebek_karar(p):
     if p >= 80: return 'KARINCA GUCLU'
     if p >= 60: return 'BEBEK ADAY'
-    if p >= 40: return 'IZLE'
+    if p >= 50: return 'IZLE'
     return 'ZAYIF'
 
 
