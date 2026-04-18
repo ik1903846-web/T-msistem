@@ -376,3 +376,106 @@ class UnifiedEngine:
         geri_n = len(self.geri_tara(yil))
         kesisim_n = len(self.kesisim_tara(yil))
         return {'toplam':toplam,'fark':fark_n,'geri':geri_n,'kesisim':kesisim_n}
+
+
+# ── Derinlemesine Analiz ─────────────────────────────────────────────────────
+class DerinAnaliz:
+    def __init__(self, engine, kod):
+        self.engine = engine
+        self.kod = kod
+        self.son = engine.son_data.get(kod, {})
+        self.sektor = self.son.get(C_SEKTOR, '')
+        self.donems = engine.sorted_donems
+
+    def _sektor_hisseleri(self):
+        """Ayni sektordeki tum hisseler (kendisi haric)."""
+        return [k for k,v in self.engine.son_data.items()
+                if v.get(C_SEKTOR,'') == self.sektor and k != self.kod]
+
+    def sektor_ortalama(self, col):
+        """Son donem icin sektordeki hisselerin medyani."""
+        vals = []
+        for k in self._sektor_hisseleri():
+            v = safe_float(self.engine.son_data[k].get(col,''))
+            if v is not None and v > 0:
+                vals.append(v)
+        if not vals:
+            return None
+        vals.sort()
+        n = len(vals)
+        return (vals[n//2] if n%2 else (vals[n//2-1]+vals[n//2])/2)
+
+    def hisse_seri(self, col):
+        """Tum donemler icin hisse serisi."""
+        seri = []
+        for d in self.donems:
+            row = self.engine.quarters[d].get(self.kod, {})
+            seri.append({
+                'donem': f"{d[:4]}/{d[4:]}",
+                'deger': safe_float(row.get(col,''))
+            })
+        return seri
+
+    def pd_seri(self):
+        """Piyasa degeri serisi."""
+        seri = []
+        for d in self.donems:
+            row = self.engine.quarters[d].get(self.kod, {})
+            seri.append({
+                'donem': f"{d[:4]}/{d[4:]}",
+                'deger': hesapla_pd(row)
+            })
+        return seri
+
+    def sektor_seri(self, col):
+        """Tum donemler icin sektor medyani."""
+        seri = []
+        for d in self.donems:
+            vals = []
+            for k in self._sektor_hisseleri():
+                v = safe_float(self.engine.quarters[d].get(k,{}).get(col,''))
+                if v is not None and v > 0:
+                    vals.append(v)
+            if vals:
+                vals.sort()
+                n = len(vals)
+                med = vals[n//2] if n%2 else (vals[n//2-1]+vals[n//2])/2
+            else:
+                med = None
+            seri.append({'donem': f"{d[:4]}/{d[4:]}", 'deger': med})
+        return seri
+
+    def deger_kart(self):
+        """Son donem degerleme karsilastirma ozeti."""
+        metriks = [
+            ('FK/PD%',   C_PD_EFK, True,  True),   # col, ters_hesap, yuksek_iyi
+            ('PD/DD',    C_PDDD,   False, False),
+            ('F/K',      C_FK_ORAN,False, False),
+            ('PD/EFK',   C_PD_EFK, False, False),
+            ('ROE%',     C_ROE,    False, True),
+            ('Marj%',    C_MARJ,   False, True),
+        ]
+        sonuc = []
+        for isim, col, ters, yuksek_iyi in metriks:
+            if isim == 'FK/PD%':
+                pd_efk = safe_float(self.son.get(C_PD_EFK,''))
+                hisse_val = (1/pd_efk*100) if pd_efk and pd_efk>0 else None
+                sek_pd_efk = self.sektor_ortalama(C_PD_EFK)
+                sektor_val = (1/sek_pd_efk*100) if sek_pd_efk and sek_pd_efk>0 else None
+            else:
+                hisse_val = safe_float(self.son.get(col,''))
+                sektor_val = self.sektor_ortalama(col)
+
+            if hisse_val is None or sektor_val is None:
+                durum = 'veri_yok'
+            elif yuksek_iyi:
+                durum = 'iyi' if hisse_val > sektor_val else 'kotu'
+            else:
+                durum = 'iyi' if hisse_val < sektor_val else 'kotu'
+
+            fark_pct = ((hisse_val-sektor_val)/sektor_val*100) if (hisse_val and sektor_val) else None
+            sonuc.append({
+                'isim': isim, 'hisse': hisse_val, 'sektor': sektor_val,
+                'durum': durum, 'fark_pct': fark_pct, 'yuksek_iyi': yuksek_iyi
+            })
+        return sonuc
