@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import json
+import pickle
+import io
 from datetime import datetime
 
 from unified_engine import (UnifiedEngine, DerinAnaliz, read_excel_bytes, donem_from_filename,
@@ -211,43 +213,112 @@ with st.sidebar:
 # ── VERİ YÜKLEME COMPONENTI ──────────────────────────────────────────────────
 def veri_yukle_widget():
     with st.expander("\U0001f4c1 Veri Yukle", expanded=not bool(st.session_state.engine)):
-        st.markdown("""<div style='background:#0A1628;border:1px solid #1E3448;
-        border-radius:8px;padding:10px 14px;font-size:12px;color:#64748B;margin-bottom:10px'>
-        Fastweb → Sirket Puanlama → Model: <b style='color:#94A3B8'>Uygulama</b> →
-        Sektör: <b style='color:#94A3B8'>Tumu</b> →
-        Donem: <b style='color:#4ADE80'>Spesifik sec (Cari Donem degil!)</b>
-        </div>""", unsafe_allow_html=True)
-        c1,c2 = st.columns([2,1])
-        with c1:
-            uploaded = st.file_uploader("", type=['xlsx'], accept_multiple_files=True,
-                                         label_visibility="collapsed")
-        with c2:
-            if uploaded:
-                st.markdown(f"<p style='color:#38BDF8;font-size:13px;margin-top:8px'>"
-                            f"\U0001f4ce {len(uploaded)} dosya</p>", unsafe_allow_html=True)
-                if st.button("\U0001f680 Taramayi Baslat", type="primary", use_container_width=True):
-                    with st.spinner("Analiz ediliyor..."):
-                        quarters, hatalar = {}, []
-                        for f in uploaded:
-                            d = donem_from_filename(f.name)
-                            if d:
-                                data = read_excel_bytes(f.read())
-                                if data: quarters[d] = data
-                                else: hatalar.append(f"`{f.name}` okunamadi")
-                            else:
-                                hatalar.append(f"`{f.name}` donem cikarilamadi")
-                        if quarters:
+
+        tab_parquet, tab_excel = st.tabs(["\U0001f4be Kayitli Veri Yukle (.parquet)", "\U0001f4ca Excel Dosyalari Yukle"])
+
+        # ── Parquet yükleme ──────────────────────────────────────────────────
+        with tab_parquet:
+            st.markdown("""<div style='background:#0A1C0F;border:1px solid #166534;
+            border-radius:8px;padding:10px 14px;font-size:12px;color:#4ADE80;margin-bottom:10px'>
+            \u26a1 En hizli yontem — daha once kaydedilmis .parquet dosyasini yukle
+            </div>""", unsafe_allow_html=True)
+            pq_file = st.file_uploader("", type=["parquet"], label_visibility="collapsed",
+                                        key="pq_uploader")
+            if pq_file:
+                if st.button("\u26a1 Yukle", type="primary", use_container_width=True, key="pq_btn"):
+                    with st.spinner("Yukleniyor..."):
+                        try:
+                            meta_df = pd.read_parquet(io.BytesIO(pq_file.read()), engine="pyarrow")
+                            quarters = {}
+                            for (donem, kod), row in meta_df.iterrows():
+                                quarters.setdefault(donem, {})[kod] = row.to_dict()
                             eng = UnifiedEngine(quarters)
+                            son_yuk = meta_df.attrs.get("son_yukleme", datetime.now().isoformat())
                             st.session_state.update({
-                                'quarters':quarters,'engine':eng,
-                                'son_donem':eng.son_donem,
-                                'son_yukleme':datetime.now().isoformat()
+                                "quarters": quarters, "engine": eng,
+                                "son_donem": eng.son_donem, "son_yukleme": son_yuk
                             })
                             st.success(f"\u2713 {len(quarters)} donem · {len(eng.son_data)} hisse")
                             st.rerun()
-                        else:
-                            st.error("Hicbir dosya yuklenemedi")
-                            for h in hatalar: st.warning(h)
+                        except Exception as e:
+                            st.error(f"Parquet yuklenemedi: {e}")
+
+        # ── Excel yükleme ────────────────────────────────────────────────────
+        with tab_excel:
+            st.markdown("""<div style='background:#0A1628;border:1px solid #1E3448;
+            border-radius:8px;padding:10px 14px;font-size:12px;color:#64748B;margin-bottom:10px'>
+            Fastweb → Sirket Puanlama → Model: <b style='color:#94A3B8'>Uygulama</b> →
+            Sektör: <b style='color:#94A3B8'>Tumu</b> →
+            Donem: <b style='color:#4ADE80'>Spesifik sec (Cari Donem degil!)</b>
+            </div>""", unsafe_allow_html=True)
+            c1,c2 = st.columns([2,1])
+            with c1:
+                uploaded = st.file_uploader("", type=['xlsx'], accept_multiple_files=True,
+                                             label_visibility="collapsed")
+            with c2:
+                if uploaded:
+                    st.markdown(f"<p style='color:#38BDF8;font-size:13px;margin-top:8px'>"
+                                f"\U0001f4ce {len(uploaded)} dosya</p>", unsafe_allow_html=True)
+                    if st.button("\U0001f680 Taramayi Baslat", type="primary",
+                                  use_container_width=True):
+                        with st.spinner("Analiz ediliyor..."):
+                            quarters, hatalar = {}, []
+                            # Mevcut quarters'i koru (ek donem ekleme)
+                            quarters = dict(st.session_state.quarters) if st.session_state.quarters else {}
+                            for f in uploaded:
+                                d = donem_from_filename(f.name)
+                                if d:
+                                    data = read_excel_bytes(f.read())
+                                    if data: quarters[d] = data
+                                    else: hatalar.append(f"`{f.name}` okunamadi")
+                                else:
+                                    hatalar.append(f"`{f.name}` donem cikarilamadi")
+                            if quarters:
+                                eng = UnifiedEngine(quarters)
+                                st.session_state.update({
+                                    "quarters": quarters, "engine": eng,
+                                    "son_donem": eng.son_donem,
+                                    "son_yukleme": datetime.now().isoformat()
+                                })
+                                st.success(f"\u2713 {len(quarters)} donem · {len(eng.son_data)} hisse")
+                                if hatalar:
+                                    for h in hatalar: st.warning(h)
+                                st.rerun()
+                            else:
+                                st.error("Hicbir dosya yuklenemedi")
+                                for h in hatalar: st.warning(h)
+
+        # ── Kaydet butonu (veri varsa göster) ───────────────────────────────
+        if st.session_state.engine:
+            st.markdown("<hr>", unsafe_allow_html=True)
+            donems = sorted(st.session_state.quarters.keys())
+            st.markdown(f"""<div style='background:#0D1926;border:1px solid #0F2040;
+            border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:8px'>
+            <span style='color:#475569'>{len(donems)} donem bellekte</span>
+            <span style='color:#1E3448'> · </span>
+            <span style='color:#475569'>{donem_fmt(donems[0])} — {donem_fmt(donems[-1])}</span>
+            </div>""", unsafe_allow_html=True)
+            if st.button("\U0001f4be Veriyi .parquet Olarak Kaydet", use_container_width=True):
+                try:
+                    rows = []
+                    for donem, hisseler in st.session_state.quarters.items():
+                        for kod, veriler in hisseler.items():
+                            rows.append({"donem": donem, "kod": kod, **veriler})
+                    df_save = pd.DataFrame(rows).set_index(["donem","kod"])
+                    df_save.attrs["son_yukleme"] = st.session_state.son_yukleme or datetime.now().isoformat()
+                    buf = io.BytesIO()
+                    df_save.to_parquet(buf, engine="pyarrow")
+                    buf.seek(0)
+                    st.download_button(
+                        "\u2b07\ufe0f bist_veri.parquet indir",
+                        data=buf.getvalue(),
+                        file_name="bist_veri.parquet",
+                        mime="application/octet-stream",
+                        use_container_width=True
+                    )
+                    st.success("Hazir! Dosyayi bilgisayarinda sakla, bir daha Excel yuklemene gerek yok.")
+                except Exception as e:
+                    st.error(f"Kayit hatasi: {e}")
 
 def bos_ekran(emoji, mesaj):
     st.markdown(f"""<div style='background:#0D1926;border:1px dashed #1E3448;
