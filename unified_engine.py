@@ -114,6 +114,35 @@ def fark_karar(p):
 
 def geri_karar(p): return fark_karar(p)
 
+
+def roe_istikrar_hesapla(quarters, donems, kod):
+    """
+    Son kac donem ust uste ROE >= %30,
+    tum gecmiste hic dusmedi mi,
+    ve son ROE degeri.
+    """
+    roe_seri = [safe_float(quarters[d].get(kod, {}).get(
+        '\u00d6zsermaye Karl\u0131l\u0131\u011f\u0131 (ROE) Y\u0131ll\u0131k (%)', ''))
+        for d in donems]
+
+    # Son kac donem ust uste %30+
+    son_kac = 0
+    for r in reversed(roe_seri):
+        if r is not None and r >= 30:
+            son_kac += 1
+        elif r is not None:
+            break
+
+    # Tum gecmiste hic %30 altina dusmedi mi (min 4 donem sartt)
+    gecerli = [r for r in roe_seri if r is not None]
+    hic_dusmedi = len(gecerli) >= 4 and all(r >= 30 for r in gecerli)
+
+    # Son ROE
+    son_roe = next((r for r in reversed(roe_seri) if r is not None), None)
+
+    return son_kac, hic_dusmedi, son_roe
+
+
 def bebek_karar(p):
     if p >= 80: return 'KARINCA GUCLU'
     if p >= 60: return 'BEBEK ADAY'
