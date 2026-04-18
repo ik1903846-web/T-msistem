@@ -3,7 +3,7 @@ import pandas as pd
 import json
 from datetime import datetime
 
-from unified_engine import (UnifiedEngine, read_excel_bytes, donem_from_filename,
+from unified_engine import (UnifiedEngine, DerinAnaliz, read_excel_bytes, donem_from_filename,
                              fmt_milyon, safe_float)
 
 st.set_page_config(
@@ -148,6 +148,7 @@ with st.sidebar:
         "\U0001f50d FARK Scanner",
         "\U0001f4c9 GER\u0130 Taray\u0131c\u0131",
         "\U0001f3af Kesisim",
+        "\U0001f4ca Detay Analizi",
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
@@ -588,6 +589,253 @@ elif page == "\U0001f3af Kesisim":
                         'donem':st.session_state.son_donem}
                     st.toast(f"\u2b50 {r['kod']} eklendi!",icon="\u2705")
                 st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# SAYFA: DETAY ANALiZi
+# ════════════════════════════════════════════════════════════════════════════
+elif page == "\U0001f4ca Detay Analizi":
+    import plotly.graph_objects as go
+    st.markdown("""<div class='ph'>
+    <div class='ph-badge' style='background:#0A0A28;color:#A78BFA;border:1px solid #2D1F6E'>
+    DETAY ANALiZ</div>
+    <div class='ph-title'>Derinlemesine Deger Analizi</div>
+    <div class='ph-sub'>Hisseyi sektoru ile karsilastir · Trend grafikleri · Degerleme pozisyonu</div>
+    </div>""", unsafe_allow_html=True)
+
+    veri_yukle_widget()
+    engine = st.session_state.engine
+    if not engine:
+        bos_ekran("\U0001f4ca","Once veri yukle"); st.stop()
+
+    yil = st.session_state.geri_yil
+
+    # Hisse secimi — kesisim + FARK + GERI hepsinden
+    kesisim   = [r["kod"] for r in engine.kesisim_tara(yil)]
+    fark_list = [r["kod"] for r in engine.fark_tara()]
+    geri_list = [r["kod"] for r in engine.geri_tara(yil)]
+    tum_liste = sorted(set(kesisim + fark_list + geri_list))
+
+    c1,c2 = st.columns([2,1])
+    with c1:
+        if not tum_liste:
+            st.warning("Analiz icin once tarama yapilmali — veri yukle."); st.stop()
+        varsayilan = kesisim[0] if kesisim else tum_liste[0]
+        secilen = st.selectbox(
+            "Hisse Sec",
+            tum_liste,
+            index=tum_liste.index(varsayilan),
+            format_func=lambda k: (
+                f"\U0001f3af {k} (Kesisim)" if k in kesisim else
+                f"\U0001f50d {k} (FARK)" if k in fark_list else
+                f"\U0001f4c9 {k} (GERI)"
+            )
+        )
+    with c2:
+        sektor = engine.son_data.get(secilen,{}).get("Hisse Sekt\u00f6r","")
+        sektor_hisse_say = sum(1 for v in engine.son_data.values()
+                               if v.get("Hisse Sekt\u00f6r","") == sektor)
+        st.markdown(f"""<div style='background:#0D1926;border:1px solid #0F2040;
+        border-radius:10px;padding:14px 16px;margin-top:4px'>
+        <div style='font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:1px'>Sektor</div>
+        <div style='font-size:14px;font-weight:700;color:#E2E8F0;margin-top:2px'>{sektor}</div>
+        <div style='font-size:11px;color:#475569;margin-top:2px'>{sektor_hisse_say} hisse ile karsilastiriliyor</div>
+        </div>""", unsafe_allow_html=True)
+
+    da = DerinAnaliz(engine, secilen)
+    deger_kart = da.deger_kart()
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # ── Degerleme Karti ──────────────────────────────────────────────────────
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:16px;margin-bottom:12px\">"
+                "\U0001f4ca Degerleme Pozisyonu — Hisse vs Sektor Medyani</h3>",
+                unsafe_allow_html=True)
+
+    cols = st.columns(len(deger_kart))
+    for i,(m,col) in enumerate(zip(deger_kart,cols)):
+        if m["durum"] == "veri_yok":
+            renk,ico,bg,brd = "#475569","—","#0D1926","#1E3448"
+        elif m["durum"] == "iyi":
+            renk,ico,bg,brd = "#4ADE80","\u2191","#0A1C0F","#166534"
+        else:
+            renk,ico,bg,brd = "#F87171","\u2193","#1C0A0A","#7F1D1D"
+
+        hisse_fmt = f"{m['hisse']:.1f}" if m["hisse"] is not None else "-"
+        sektor_fmt = f"{m['sektor']:.1f}" if m["sektor"] is not None else "-"
+        fark_fmt = (f"{m['fark_pct']:+.0f}%" if m["fark_pct"] is not None else "")
+
+        col.markdown(f"""<div style='background:{bg};border:1px solid {brd};
+        border-radius:10px;padding:14px;text-align:center'>
+        <div style='font-size:9px;color:#475569;text-transform:uppercase;
+        letter-spacing:1px;margin-bottom:6px'>{m["isim"]}</div>
+        <div style='font-size:22px;font-weight:900;color:{renk}'>{hisse_fmt}</div>
+        <div style='font-size:10px;color:#475569;margin-top:4px'>
+        Sektor: {sektor_fmt}</div>
+        <div style='font-size:11px;font-weight:700;color:{renk};margin-top:2px'>
+        {ico} {fark_fmt}</div>
+        </div>""", unsafe_allow_html=True)
+
+    # Kac metrikte iyi
+    iyi_say = sum(1 for m in deger_kart if m["durum"]=="iyi")
+    toplam_say = sum(1 for m in deger_kart if m["durum"]!="veri_yok")
+    if toplam_say > 0:
+        oran = iyi_say/toplam_say
+        renk_oz = "#4ADE80" if oran>=0.6 else "#FCD34D" if oran>=0.4 else "#F87171"
+        st.markdown(f"""<div style='background:#0D1926;border:1px solid #0F2040;
+        border-radius:8px;padding:10px 16px;margin-top:10px;display:flex;
+        align-items:center;gap:12px'>
+        <span style='font-size:22px;font-weight:900;color:{renk_oz}'>{iyi_say}/{toplam_say}</span>
+        <span style='color:#64748B;font-size:12px'>metrikte sektorunun {"\u00fc" if iyi_say>1 else ""}stunde
+        · {"Deger acisindan UCUZ gorunuyor" if oran>=0.6 else "Karma tablo" if oran>=0.4 else "Sektorune gore pahali"}</span>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # ── Trend Grafikleri ─────────────────────────────────────────────────────
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:16px;margin-bottom:16px\">"
+                "\U0001f4c8 Tarihsel Trend Grafikleri</h3>", unsafe_allow_html=True)
+
+    GRAFIK_RENK_HISSE  = "#38BDF8"
+    GRAFIK_RENK_SEKTOR = "#475569"
+    GRAFIK_BG          = "#080E17"
+    GRAFIK_GRID        = "#0F2040"
+
+    def cizgi_grafik(baslik, hisse_seri, sektor_seri=None, birim=""):
+        donems  = [s["donem"] for s in hisse_seri]
+        hisse_y = [s["deger"] for s in hisse_seri]
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=donems, y=hisse_y, name=secilen,
+            line=dict(color=GRAFIK_RENK_HISSE, width=2.5),
+            mode="lines+markers",
+            marker=dict(size=5, color=GRAFIK_RENK_HISSE),
+            hovertemplate=f"%{{x}}<br>{secilen}: %{{y:.1f}}{birim}<extra></extra>"
+        ))
+        if sektor_seri:
+            sektor_y = [s["deger"] for s in sektor_seri]
+            fig.add_trace(go.Scatter(
+                x=donems, y=sektor_y, name="Sektor Medyani",
+                line=dict(color=GRAFIK_RENK_SEKTOR, width=1.5, dash="dot"),
+                mode="lines",
+                hovertemplate=f"%{{x}}<br>Sektor: %{{y:.1f}}{birim}<extra></extra>"
+            ))
+        fig.update_layout(
+            title=dict(text=baslik, font=dict(color="#94A3B8", size=13)),
+            paper_bgcolor=GRAFIK_BG, plot_bgcolor=GRAFIK_BG,
+            font=dict(color="#475569", size=11),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#64748B")),
+            margin=dict(l=10, r=10, t=40, b=10),
+            height=240,
+            xaxis=dict(gridcolor=GRAFIK_GRID, tickangle=-45, tickfont=dict(size=9)),
+            yaxis=dict(gridcolor=GRAFIK_GRID),
+            hovermode="x unified"
+        )
+        return fig
+
+    # EFK vs Sektor
+    efk_h = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
+    efk_s = da.sektor_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
+    # Milyon formatinda
+    for item in efk_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+    for item in efk_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(cizgi_grafik(
+            "Esas Faaliyet Kari (Milyon TL)", efk_h, efk_s, "M"), use_container_width=True)
+    with col2:
+        pd_h = da.pd_seri()
+        pd_s = da.sektor_seri("Piyasa De\u011feri")
+        for item in pd_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+        for item in pd_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+        st.plotly_chart(cizgi_grafik(
+            "Piyasa Degeri (Milyon TL)", pd_h, pd_s, "M"), use_container_width=True)
+
+    col3, col4 = st.columns(2)
+    with col3:
+        pddd_h = da.hisse_seri("Piyasa De\u011feri / Defter De\u011feri")
+        pddd_s = da.sektor_seri("Piyasa De\u011feri / Defter De\u011feri")
+        st.plotly_chart(cizgi_grafik("PD/DD Trendi", pddd_h, pddd_s), use_container_width=True)
+    with col4:
+        ns_h = da.hisse_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
+        ns_s = da.sektor_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
+        for item in ns_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+        for item in ns_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+        st.plotly_chart(cizgi_grafik(
+            "Net Satislar (Milyon TL)", ns_h, ns_s, "M"), use_container_width=True)
+
+    # EFK vs PD Indexlenmis karsilastirma
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:16px;margin-bottom:8px\">"
+                "\U0001f3af EFK vs PD — Fiyat Geride mi? (Indexlenmis)</h3>",
+                unsafe_allow_html=True)
+    st.markdown("<p style=\"font-size:11px;color:#475569;margin-bottom:12px\">"
+                "Her iki seri ilk doneme gore 100 baz alinarak karsilastirilir. "
+                "Mavi cizgi sarin uzegindeyse fiyat geri kalmis demektir.</p>",
+                unsafe_allow_html=True)
+
+    efk_raw = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
+    pd_raw  = da.pd_seri()
+    donems  = [s["donem"] for s in efk_raw]
+
+    efk_vals = [s["deger"] for s in efk_raw]
+    pd_vals  = [s["deger"] for s in pd_raw]
+
+    efk_base = next((v for v in efk_vals if v and v>0), None)
+    pd_base  = next((v for v in pd_vals  if v and v>0), None)
+
+    if efk_base and pd_base:
+        efk_idx = [(v/efk_base*100) if v else None for v in efk_vals]
+        pd_idx  = [(v/pd_base*100)  if v else None for v in pd_vals]
+
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=donems, y=efk_idx, name="EFK (index)",
+            line=dict(color="#38BDF8", width=2.5),
+            mode="lines+markers", marker=dict(size=5),
+            hovertemplate="%{x}<br>EFK: %{y:.0f}<extra></extra>"
+        ))
+        fig2.add_trace(go.Scatter(
+            x=donems, y=pd_idx, name="Piyasa Degeri (index)",
+            line=dict(color="#FCD34D", width=2.5),
+            mode="lines+markers", marker=dict(size=5, symbol="diamond"),
+            hovertemplate="%{x}<br>PD: %{y:.0f}<extra></extra>"
+        ))
+        fig2.add_hline(y=100, line_dash="dot", line_color="#1E3448")
+        fig2.update_layout(
+            paper_bgcolor=GRAFIK_BG, plot_bgcolor=GRAFIK_BG,
+            font=dict(color="#475569",size=11),
+            legend=dict(bgcolor="rgba(0,0,0,0)",font=dict(color="#64748B")),
+            margin=dict(l=10,r=10,t=20,b=10), height=280,
+            xaxis=dict(gridcolor=GRAFIK_GRID,tickangle=-45,tickfont=dict(size=9)),
+            yaxis=dict(gridcolor=GRAFIK_GRID,title="Baz = 100"),
+            hovermode="x unified"
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # Son deger yorumu
+        last_efk = next((v for v in reversed(efk_idx) if v), None)
+        last_pd  = next((v for v in reversed(pd_idx)  if v), None)
+        if last_efk and last_pd:
+            fark = last_efk - last_pd
+            if fark > 20:
+                yorum = f"EFK {fark:.0f} puan daha hizli buyudu — fiyat belirgin sekilde geride kalmis."
+                yorum_renk = "#4ADE80"
+            elif fark > 0:
+                yorum = f"EFK {fark:.0f} puan onunde — hafif deger farki var."
+                yorum_renk = "#FCD34D"
+            else:
+                yorum = f"Fiyat {abs(fark):.0f} puan onde — piyasa EFK buyumesini fiyatlamis."
+                yorum_renk = "#F87171"
+            st.markdown(f"""<div style='background:#0D1926;border-left:3px solid {yorum_renk};
+            border-radius:8px;padding:10px 16px;margin-top:4px'>
+            <span style='color:{yorum_renk};font-weight:700'>{secilen}</span>
+            <span style='color:#94A3B8;font-size:13px'> — {yorum}</span>
+            </div>""", unsafe_allow_html=True)
+    else:
+        st.info("Yeterli veri yok — daha fazla donem yukle.")
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 4: TAKİP LİSTESİ
