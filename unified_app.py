@@ -251,16 +251,20 @@ def veri_yukle_widget():
             Sektör: <b style='color:#94A3B8'>Tumu</b> →
             Donem: <b style='color:#4ADE80'>Spesifik sec (Cari Donem degil!)</b>
             </div>""", unsafe_allow_html=True)
-            c1,c2 = st.columns([2,1])
-            with c1:
-                uploaded = st.file_uploader("", type=['xlsx'], accept_multiple_files=True,
-                                             label_visibility="collapsed")
-            with c2:
-                if uploaded:
+            if "xlsx_key" not in st.session_state:
+                st.session_state.xlsx_key = 0
+
+            uploaded = st.file_uploader("", type=['xlsx'], accept_multiple_files=True,
+                                         label_visibility="collapsed",
+                                         key=f"xlsx_{st.session_state.xlsx_key}")
+
+            if uploaded:
+                c1,c2,c3 = st.columns([2,1,1])
+                with c1:
                     st.markdown(f"<p style='color:#38BDF8;font-size:13px;margin-top:8px'>"
-                                f"\U0001f4ce {len(uploaded)} dosya</p>", unsafe_allow_html=True)
-                    if st.button("\U0001f680 Taramayi Baslat", type="primary",
-                                  use_container_width=True):
+                                f"\U0001f4ce {len(uploaded)} dosya secildi</p>", unsafe_allow_html=True)
+                with c2:
+                    if st.button("\U0001f680 Taramayi Baslat", type="primary", use_container_width=True, key="baslat_btn"):
                         with st.spinner("Analiz ediliyor..."):
                             quarters, hatalar = {}, []
                             # Mevcut quarters'i koru (ek donem ekleme)
@@ -287,6 +291,11 @@ def veri_yukle_widget():
                             else:
                                 st.error("Hicbir dosya yuklenemedi")
                                 for h in hatalar: st.warning(h)
+                with c3:
+                    if st.button("\U0001f5d1\ufe0f Temizle", use_container_width=True, key="temizle_btn",
+                                  help="Secili tum dosyalari kaldir"):
+                        st.session_state.xlsx_key += 1
+                        st.rerun()
 
         # ── Kaydet butonu (veri varsa göster) ───────────────────────────────
         if st.session_state.engine:
