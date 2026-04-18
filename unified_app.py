@@ -127,7 +127,7 @@ hr { border-color:#0F2040 !important; }
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 for k,v in [('quarters',{}),('engine',None),('son_donem',None),('son_yukleme',None),
-             ('watchlist',{}),('geri_yil',3),('hisse_git',None),('page_key',0)]:
+             ('watchlist',{}),('geri_yil',3),('hisse_git',None),('aktif_sayfa',None)]:
     if k not in st.session_state: st.session_state[k]=v
 
 def df_to_excel_bytes(df):
@@ -157,9 +157,8 @@ def badge(k):
 KARAR_RENK = {'GUCLU ADAY':'#4ADE80','POTANSIYEL':'#FCD34D','ZAYIF':'#FB923C','ELENDI':'#F87171'}
 
 def git_detay(kod):
-    """Hisse koduna tiklayinca Detay Analizi'ne git"""
     st.session_state.hisse_git = kod
-    st.session_state.page_key += 1
+    st.session_state.aktif_sayfa = "\U0001f4ca Detay Analizi"
     st.rerun()
 
 # ── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -178,12 +177,16 @@ with st.sidebar:
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
     ]
-    detay_idx = SAYFALAR.index("\U0001f4ca Detay Analizi")
-    baslangic = detay_idx if st.session_state.hisse_git else 0
+    # Hisse tıklanınca Detay'a git
+    if st.session_state.aktif_sayfa:
+        baslangic = SAYFALAR.index(st.session_state.aktif_sayfa)
+        st.session_state.aktif_sayfa = None
+    else:
+        baslangic = 0
     page = st.radio("", SAYFALAR,
                     index=baslangic,
                     label_visibility="collapsed",
-                    key=f"page_radio_{st.session_state.page_key}")
+                    key="page_radio")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
