@@ -589,6 +589,15 @@ elif page == "\U0001f4c9 GER\u0130 Taray\u0131c\u0131":
         elif not istek and in_wl:
             del st.session_state.watchlist[kod]; st.rerun()
 
+    if goster:
+        xls_geri = tablo.drop(columns=['⭐'], errors='ignore')
+        st.download_button(
+            "⬇️ Listeyi Excel Olarak indir",
+            data=df_to_excel_bytes(xls_geri),
+            file_name=f"GERI_{st.session_state.son_donem}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA 3: KESİŞİM
 # ════════════════════════════════════════════════════════════════════════════
