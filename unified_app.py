@@ -744,8 +744,12 @@ elif page == "\U0001f476 Bebek Hisse":
     with c3:
         sir = st.selectbox("Sirala",["Puan \u2193","Potansiyel X \u2193",
                                       "FK/PD% \u2193","PD/DD \u2191","Marj% \u2193"])
-    with c4:
+    c4a, c4b = st.columns([1.5, 4.5])
+    with c4a:
         min_x = st.number_input("Min Potansiyel X", 0.0, 50.0, 0.0, 1.0)
+    with c4b:
+        arama = st.text_input("\U0001f50d Hisse Ara", placeholder="Kod: HDFGS, GLRYH...",
+                               label_visibility="visible")
     goster = [r for r in sonuclar if r['karar'] in kf]
     if arama: goster = [r for r in goster if arama.upper() in r['kod'].upper()]
     if sf: goster = [r for r in goster if r['sektor'] in sf]
@@ -917,28 +921,8 @@ elif page == "\U0001f4ca Detay Analizi":
     da = DerinAnaliz(engine, secilen)
     deger_kart = da.deger_kart()
 
-    # ── Dönem Seçici ─────────────────────────────────────────────────────────
     st.markdown("<hr>", unsafe_allow_html=True)
     toplam_donem = len(engine.sorted_donems)
-    donem_secenekleri = {}
-    for n in [4, 8, 12, 16, 20, 24, 28, 32]:
-        if n <= toplam_donem:
-            donem_secenekleri[f"Son {n} donem"] = n
-    donem_secenekleri[f"Tumu ({toplam_donem})"] = toplam_donem
-
-    dc1, dc2 = st.columns([2,4])
-    with dc1:
-        secili_donem_lbl = st.selectbox(
-            "Grafik Periyodu",
-            list(donem_secenekleri.keys()),
-            index=min(2, len(donem_secenekleri)-1)
-        )
-    secili_donem_n = donem_secenekleri[secili_donem_lbl]
-    donem_filtre = engine.sorted_donems[-secili_donem_n:]
-
-    # DerinAnaliz icin filtrelenmiş seri fonksiyonu
-    def seri_filtreli(seri_tum):
-        return [s for s in seri_tum if s['donem'] in [f"{d[:4]}/{d[4:]}" for d in donem_filtre]]
 
     # ── Degerleme Karti (2'li satir) ─────────────────────────────────────────
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
@@ -1053,24 +1037,35 @@ elif page == "\U0001f4ca Detay Analizi":
         )
         return fig
 
-    # EFK vs Sektor — dönem filtreli
-    donem_fmt_list = [f"{d[:4]}/{d[4:]}" for d in donem_filtre]
+    def donem_slider(key, label=""):
+        n = st.slider(label or "Donem sayisi", 
+                      min_value=1, max_value=toplam_donem, 
+                      value=min(toplam_donem, 12), step=1, key=key)
+        return [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n:]]
+
+    # EFK vs Sektor
     efk_h_tum = da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
     efk_s_tum = da.sektor_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)")
-    efk_h = [s for s in efk_h_tum if s['donem'] in donem_fmt_list]
-    efk_s = [s for s in efk_s_tum if s['donem'] in donem_fmt_list]
-    for item in efk_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
-    for item in efk_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
 
     col1, col2 = st.columns(2)
     with col1:
+        n1 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_efk",
+                        format="%d donem", label_visibility="collapsed")
+        d1 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n1:]]
+        efk_h = [s for s in efk_h_tum if s['donem'] in d1]
+        efk_s = [s for s in efk_s_tum if s['donem'] in d1]
+        for item in efk_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
+        for item in efk_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         st.plotly_chart(cizgi_grafik(
             "Esas Faaliyet Kari (Milyon TL)", efk_h, efk_s, "M"), use_container_width=True)
     with col2:
+        n2 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_pd",
+                        format="%d donem", label_visibility="collapsed")
+        d2 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n2:]]
         pd_h_tum = da.pd_seri()
         pd_s_tum = da.sektor_seri("Piyasa De\u011feri")
-        pd_h = [s for s in pd_h_tum if s['donem'] in donem_fmt_list]
-        pd_s = [s for s in pd_s_tum if s['donem'] in donem_fmt_list]
+        pd_h = [s for s in pd_h_tum if s['donem'] in d2]
+        pd_s = [s for s in pd_s_tum if s['donem'] in d2]
         for item in pd_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         for item in pd_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         st.plotly_chart(cizgi_grafik(
@@ -1078,14 +1073,18 @@ elif page == "\U0001f4ca Detay Analizi":
 
     col3, col4 = st.columns(2)
     with col3:
-        pddd_h = [s for s in da.hisse_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in donem_fmt_list]
-        pddd_s = [s for s in da.sektor_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in donem_fmt_list]
+        n3 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_pddd",
+                        format="%d donem", label_visibility="collapsed")
+        d3 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n3:]]
+        pddd_h = [s for s in da.hisse_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in d3]
+        pddd_s = [s for s in da.sektor_seri("Piyasa De\u011feri / Defter De\u011feri") if s['donem'] in d3]
         st.plotly_chart(cizgi_grafik("PD/DD Trendi", pddd_h, pddd_s), use_container_width=True)
     with col4:
-        ns_h_tum = da.hisse_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
-        ns_s_tum = da.sektor_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)")
-        ns_h = [s for s in ns_h_tum if s['donem'] in donem_fmt_list]
-        ns_s = [s for s in ns_s_tum if s['donem'] in donem_fmt_list]
+        n4 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_ns",
+                        format="%d donem", label_visibility="collapsed")
+        d4 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n4:]]
+        ns_h = [s for s in da.hisse_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)") if s['donem'] in d4]
+        ns_s = [s for s in da.sektor_seri("Net Sat\u0131\u015flar (Y\u0131ll\u0131k)") if s['donem'] in d4]
         for item in ns_h: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         for item in ns_s: item["deger"] = (item["deger"]/1_000_000) if item["deger"] else None
         st.plotly_chart(cizgi_grafik(
@@ -1101,8 +1100,11 @@ elif page == "\U0001f4ca Detay Analizi":
                 "Mavi cizgi sarin uzegindeyse fiyat geri kalmis demektir.</p>",
                 unsafe_allow_html=True)
 
-    efk_raw = [s for s in da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)") if s['donem'] in donem_fmt_list]
-    pd_raw  = [s for s in da.pd_seri() if s['donem'] in donem_fmt_list]
+    n5 = st.slider("", 1, toplam_donem, min(toplam_donem,12), key="sl_idx",
+                    format="%d donem", label_visibility="collapsed")
+    d5 = [f"{d[:4]}/{d[4:]}" for d in engine.sorted_donems[-n5:]]
+    efk_raw = [s for s in da.hisse_seri("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)") if s['donem'] in d5]
+    pd_raw  = [s for s in da.pd_seri() if s['donem'] in d5]
     donems  = [s["donem"] for s in efk_raw]
 
     efk_vals = [s["deger"] for s in efk_raw]
