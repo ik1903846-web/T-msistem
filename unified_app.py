@@ -1445,139 +1445,47 @@ elif page == "\U0001f4ca Detay Analizi":
         st.plotly_chart(fig_f, use_container_width=True)
 
 
-    # Haber & Yorum
+    # Haber & Linkler
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
-                "\U0001f4f0 Haber & Finansal Yorum</h3>", unsafe_allow_html=True)
+                "\U0001f4f0 Haber & Kaynaklar</h3>", unsafe_allow_html=True)
 
-    col_yorum, col_haber = st.columns([1, 1])
+    kap_url      = f"https://www.kap.org.tr/tr/arama?q={secilen}"
+    bgundem_url  = f"https://www.borsagundem.com/hisse/{secilen}"
+    bloomberg_url= f"https://www.bloomberght.com/hisse/{secilen}"
+    linkedin_url = f"https://www.linkedin.com/search/results/all/?keywords={secilen}+hisse"
+    investing_url= f"https://tr.investing.com/search/?q={secilen}"
+    isyatirim_url= f"https://www.isyatirim.com.tr/analiz-ve-raporlar/hisse?hisse={secilen}"
 
-    with col_yorum:
-        st.markdown("<p style=\"font-size:12px;color:#475569;margin-bottom:8px\">"
-                    "\U0001f916 Claude Finansal Yorumu</p>", unsafe_allow_html=True)
-        if st.button("\U0001f4ca Finansal Yorum Al", key="yorum_btn", use_container_width=True):
-            son_v = engine.son_data.get(secilen, {})
-            efk_v   = safe_float(son_v.get("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)", ""))
-            pd_v    = hesapla_pd(son_v)
-            pddd_v  = safe_float(son_v.get("Piyasa De\u011feri / Defter De\u011feri", ""))
-            roe_v   = safe_float(son_v.get("\u00d6zsermaye Karl\u0131l\u0131\u011f\u0131 (ROE) Y\u0131ll\u0131k (%)", ""))
-            marj_v  = safe_float(son_v.get("Esas Faaliyet Kar Marj\u0131 (Y\u0131ll\u0131k)", ""))
-            pio_v   = safe_float(son_v.get("Piotroski F Skor", ""))
-            skac, hdum, _ = roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, secilen)
-            kat_tum = da.kat_buyume_tablosu()
-            efk_kat = next((i["kat"] for i in kat_tum if i["kalem"]=="EFK" and i.get("kat")), None)
-            pd_kat  = next((i["kat"] for i in kat_tum if i["kalem"]=="Piyasa Degeri" and i.get("kat")), None)
-            ozk_kat = next((i["kat"] for i in kat_tum if i["kalem"]=="Ozkaynaklar" and i.get("kat")), None)
-            fkpd_str = f"{efk_v/pd_v*100:.1f}%" if efk_v and pd_v else "-"
+    linkler = [
+        ("\U0001f4cb KAP Açıklamaları",    kap_url,       "#1E3A8A", "Resmi özel durum açıklamaları"),
+        ("\U0001f4ca Borsa Gündem",         bgundem_url,   "#166534", "Haber & analist yorumları"),
+        ("\U0001f4f0 Bloomberg HT",         bloomberg_url, "#7F1D1D", "Finansal haberler"),
+        ("\U0001f4bc LinkedIn",             linkedin_url,  "#1E3448", "Şirket & yönetim haberleri"),
+        ("\U0001f310 Investing.com",        investing_url, "#92400E", "Teknik & temel analiz"),
+        ("\U0001f3e6 İş Yatırım Analiz",   isyatirim_url, "#1E3448", "Analist raporu & hedef fiyat"),
+    ]
 
-            prompt = (
-                f"Sen deneyimli bir BIST finansal analistisin. "
-                f"{secilen} ({sektor}) hissesini asagidaki verilere gore Turkce analiz et.\n\n"
-                f"METRIKLER:\n"
-                f"- EFK: {fmt_milyon(efk_v)} TL | PD: {fmt_milyon(pd_v)} TL | FK/PD%: {fkpd_str}\n"
-                f"- PD/DD: {round(pddd_v,2) if pddd_v else '-'} | ROE: {round(roe_v,1) if roe_v else '-'}% "
-                f"| Marj: {round(marj_v,1) if marj_v else '-'}% | Piotroski: {int(pio_v) if pio_v else '-'}/9\n"
-                f"- ROE 30+ Donem: {skac} | Pirlanta: {'EVET' if hdum else 'Hayir'}\n"
-                f"- EFK Kat Buyume: {f'{efk_kat:.1f}x' if efk_kat else '-'} | "
-                f"PD Kat: {f'{pd_kat:.1f}x' if pd_kat else '-'} | "
-                f"Ozk Kat: {f'{ozk_kat:.1f}x' if ozk_kat else '-'}\n\n"
-                f"Sunlari yorumla:\n"
-                f"1. **Guclu Yonler** - Ne iyi?\n"
-                f"2. **Risk Faktorleri** - Dikkat edilmesi gerekenler?\n"
-                f"3. **Deger Analizi** - Ucuz mu, pahali mi?\n"
-                f"4. **GXSMODUJ Degerlendirmesi** - Bebek hisse/pirlanta kriterleri?\n"
-                f"5. **Pazar Istahi & Rekabet** - Sektor konumu, rakipler, buyume potansiyeli\n"
-                f"6. **Ozet Kani** - 1-2 cumle\n\n"
-                f"Not: Bu yatirim tavsiyesi degildir."
+    cols = st.columns(3)
+    for i, (lbl, url, renk, aciklama) in enumerate(linkler):
+        with cols[i % 3]:
+            st.markdown(
+                f"<a href=\"{url}\" target=\"_blank\" style=\"text-decoration:none\">"
+                f"<div style=\"background:#0D1926;border:1px solid {renk};border-radius:10px;"
+                f"padding:12px 14px;margin-bottom:8px;cursor:pointer\">"
+                f"<div style=\"font-size:13px;font-weight:700;color:#E2E8F0\">{lbl}</div>"
+                f"<div style=\"font-size:10px;color:#475569;margin-top:3px\">{aciklama}</div>"
+                f"</div></a>",
+                unsafe_allow_html=True
             )
 
-            with st.spinner("Analiz yapiliyor..."):
-                try:
-                    import requests as _req
-                    api_key = st.secrets.get("ANTHROPIC_API_KEY","")
-                    if not api_key:
-                        st.warning("Streamlit secrets'a ANTHROPIC_API_KEY ekleyin.")
-                        st.stop()
-                    resp = _req.post(
-                        "https://api.anthropic.com/v1/messages",
-                        headers={"Content-Type": "application/json",
-                                 "x-api-key": api_key,
-                                 "anthropic-version": "2023-06-01"},
-                        json={"model": "claude-sonnet-4-20250514", "max_tokens": 1000,
-                              "messages": [{"role": "user", "content": prompt}]},
-                        timeout=30
-                    )
-                    resp_data = resp.json()
-                    if "content" not in resp_data:
-                        st.error(f"API Hatasi: {resp_data.get('error',{}).get('message','Bilinmeyen hata')}")
-                        st.stop()
-                    yorum = resp_data["content"][0]["text"]
-                    st.session_state["yorum_" + secilen] = yorum
-                except Exception as ex:
-                    st.error(f"Yorum alinamadi: {ex}")
-
-        yorum_key = "yorum_" + secilen
-        if yorum_key in st.session_state:
-            yorum_html = st.session_state[yorum_key].replace("\n", "<br>")
-            st.markdown(
-                "<div style='background:#0D1926;border:1px solid #1E3448;border-radius:10px;"
-                "padding:14px 18px;font-size:12px;color:#E2E8F0;line-height:1.7'>"
-                + yorum_html + "</div>", unsafe_allow_html=True)
-
-    with col_haber:
-        st.markdown("<p style=\"font-size:12px;color:#475569;margin-bottom:8px\">"
-                    "\U0001f4f0 Guncel Haberler & KAP</p>", unsafe_allow_html=True)
-        if st.button("\U0001f50d Haberleri Getir", key="haber_btn", use_container_width=True):
-            with st.spinner("Haberler aranıyor..."):
-                try:
-                    import requests as _req2
-                    haber_prompt = (
-                        f"{secilen} hissesi ({sektor} sektoru) hakkinda web'de arama yap. "
-                        f"kap.org.tr, borsagundem.com, bloomberght.com, linkedin.com, "
-                        f"investing.com/tr sitelerinde ara. "
-                        f"Asagidaki konularda madde madde Turkce bilgi ver:\n"
-                        f"- Son KAP ozel durum aciklamalari\n"
-                        f"- Son mali tablo aciklamalari ve onemli notlar\n"
-                        f"- Yonetim ve CEO haberleri, LinkedIn paylasimlari\n"
-                        f"- Analist raporu ve hedef fiyat tahmini\n"
-                        f"- Sektordeki rekabet ortami ve rakip hisseler\n"
-                        f"- Hisseyi etkileyebilecek makro/sektor haberleri\n"
-                        f"Her maddeyi kaynak URL ile belirt. Bulamazsan 'Bilgi yok' yaz."
-                    )
-                    api_key2 = st.secrets.get("ANTHROPIC_API_KEY","")
-                    if not api_key2:
-                        st.warning("Streamlit secrets'a ANTHROPIC_API_KEY ekleyin.")
-                        st.stop()
-                    resp2 = _req2.post(
-                        "https://api.anthropic.com/v1/messages",
-                        headers={"Content-Type": "application/json",
-                                 "x-api-key": api_key2,
-                                 "anthropic-version": "2023-06-01"},
-                        json={"model": "claude-sonnet-4-20250514", "max_tokens": 800,
-                              "tools": [{"type": "web_search_20250305", "name": "web_search"}],
-                              "messages": [{"role": "user", "content": haber_prompt}]},
-                        timeout=45
-                    )
-                    data2 = resp2.json()
-                    if "error" in data2:
-                        st.error(f"API Hatasi: {data2['error'].get('message','')}")
-                        st.stop()
-                    parts = []
-                    for b in data2.get("content", []):
-                        if b.get("type") == "text" and b.get("text","").strip():
-                            parts.append(b["text"].strip())
-                    haber = "\n\n".join(parts)
-                    st.session_state["haber_" + secilen] = haber if haber else "Haber bulunamadi — kaynak erisimi kisitli olabilir."
-                except Exception as ex2:
-                    st.error(f"Haber alinamadi: {ex2}")
-
-        haber_key = "haber_" + secilen
-        if haber_key in st.session_state:
-            haber_html = st.session_state[haber_key].replace("\n", "<br>")
-            st.markdown(
-                "<div style='background:#0D1926;border:1px solid #1E3448;border-radius:10px;"
-                "padding:14px 18px;font-size:12px;color:#E2E8F0;line-height:1.7'>"
-                + haber_html + "</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style=\"background:#0D1926;border:1px solid #1E3448;border-radius:8px;"
+        f"padding:10px 16px;margin-top:4px;font-size:11px;color:#475569\">"
+        f"Tüm linkler <b style=\"color:#38BDF8\">{secilen}</b> için arama sonuçlarına gider. "
+        f"Yeni sekmede açılır.</div>",
+        unsafe_allow_html=True
+    )
 
 
 # ════════════════════════════════════════════════════════════════════════════
