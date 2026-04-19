@@ -169,6 +169,7 @@ with st.sidebar:
         "\U0001f476 Bebek Hisse",
         "\U0001f4ca Detay Analizi",
         "\U0001f504 ROE Tarayici",
+        "🔄 Yasam Dongusu",
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
@@ -1490,6 +1491,159 @@ elif page == "\U0001f4ca Detay Analizi":
 
 # ════════════════════════════════════════════════════════════════════════════
 # SAYFA: ROE TARAYICI
+
+# ════════════════════════════════════════════════════════════════════════════
+# SAYFA: YASAM DONGUSU TARAYICISI
+# ════════════════════════════════════════════════════════════════════════════
+elif page == "🔄 Yasam Dongusu":
+    import plotly.graph_objects as go
+
+    st.markdown("""<div class='ph'>
+    <div class='ph-badge' style='background:#0A1020;color:#A78BFA;border:1px solid #4C1D95'>
+    YASAM DONGUSU</div>
+    <div class='ph-title'>Damodaran Kurumsal Yasam Dongusu</div>
+    <div class='ph-sub'>6 Asama · Bar Mitzvah Sinyali · BIST Dagilimi</div>
+    </div>""", unsafe_allow_html=True)
+
+    veri_yukle_widget()
+    engine = st.session_state.engine
+    if not engine:
+        bos_ekran("🔄", "Once veri yukle"); st.stop()
+
+    donems  = engine.sorted_donems
+    son_data = engine.son_data
+
+    ASAMA_META = {
+        1: ("🌱", "Baslangic",       "#94A3B8", "EFK istikrarsiz. Yuksek risk, hikaye one cikar."),
+        2: ("🧒", "Genc Buyume",     "#38BDF8", "Gelir cok hizli buyuyor. Bar Mitzvah oncesi kritik donem."),
+        3: ("🚀", "Yuksek Buyume",   "#4ADE80", "EFK pozitif, gelir hizli, marj yukseliyor. Altin donem."),
+        4: ("💪", "Olgun Buyume",    "#A78BFA", "Buyume suruyor ama olgunlasiyor. Karlilik stabil."),
+        5: ("🏛", "Olgun/Stabil",    "#FCD34D", "Dusuk buyume, yuksek marj, fazla nakit. Savunma evresi."),
+        6: ("📉", "Dusus",           "#F87171", "Gelir ve marj geriliyor. Dikkatli olunmali."),
+    }
+
+    # Tum hisseleri tara
+    dagilim = {i: [] for i in range(1, 7)}
+    for kod, row in son_data.items():
+        pd_val = hesapla_pd(row)
+        if not pd_val or pd_val <= 0: continue
+        sonuc = yasam_dongusu_hesapla(engine.quarters, donems, kod)
+        if sonuc[0] is None: continue
+        asama, label, emoji, aciklama, det = sonuc
+        dagilim[asama].append({
+            "kod": kod, "sektor": row.get(C_SEKTOR, ""),
+            "ns_buy": det.get("ns_buy"), "marj": det.get("marj_son"),
+            "yy_buy": det.get("yy_buy"), "efk_poz": det.get("efk_poz_oran"),
+            "pd_val": pd_val,
+        })
+
+    toplam = sum(len(v) for v in dagilim.values())
+
+    # Ozet kartlar
+    kart_parcalar = []
+    for asama in range(1, 7):
+        em, lbl, renk, _ = ASAMA_META[asama]
+        sayi = len(dagilim[asama])
+        yuzde = sayi / toplam * 100 if toplam > 0 else 0
+        kart_parcalar.append(
+            f"<div class='mc' style='border-top:3px solid {renk}'>"
+            f"<div style='font-size:18px'>{em}</div>"
+            f"<div class='mc-num' style='color:{renk};font-size:20px'>{sayi}</div>"
+            f"<div class='mc-lbl'>{lbl}</div>"
+            f"<div style='font-size:10px;color:#475569'>%{yuzde:.0f}</div></div>"
+        )
+    st.markdown("<div class='mrow'>" + "".join(kart_parcalar) + "</div>", unsafe_allow_html=True)
+
+    # Pasta grafik + Bar Mitzvah aciklama
+    col_pie, col_info = st.columns([1, 1])
+    with col_pie:
+        labels = [f"{ASAMA_META[i][1]} ({len(dagilim[i])})" for i in range(1, 7)]
+        values = [len(dagilim[i]) for i in range(1, 7)]
+        renkler = [ASAMA_META[i][2] for i in range(1, 7)]
+        fig_pie = go.Figure(go.Pie(
+            labels=labels, values=values,
+            marker=dict(colors=renkler, line=dict(color="#080E17", width=2)),
+            hole=0.45, textinfo="percent", textfont=dict(size=11, color="white"),
+        ))
+        fig_pie.update_layout(
+            paper_bgcolor="#080E17", plot_bgcolor="#080E17",
+            font=dict(color="#94A3B8", size=10),
+            margin=dict(l=10, r=10, t=10, b=10), height=280,
+            legend=dict(font=dict(size=9), bgcolor="rgba(0,0,0,0)"),
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with col_info:
+        st.markdown(
+            "<div style='background:#0A1020;border:1px solid #4C1D95;"
+            "border-radius:10px;padding:16px 18px'>"
+            "<div style='color:#A78BFA;font-weight:800;font-size:14px;margin-bottom:10px'>"
+            "🎓 Bar Mitzvah Testi</div>"
+            "<p style='color:#64748B;font-size:12px;line-height:1.7'>"
+            "Damodaran'a gore en kritik gecis:<br>"
+            "<b style='color:#38BDF8'>Genc Buyume → Yuksek Buyume</b><br><br>"
+            "Gelir hizla buyurken EFK pozitife donuyor, "
+            "marjlar yukseliyor. Bu gecisi erken yakalamak "
+            "en yuksek getiriyi saglar.<br><br>"
+            "<b style='color:#4ADE80'>🧒 Genc Buyume</b> asamasindaki "
+            "hisseler tam bu esiktedir.</p></div>",
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # 6 Tab
+    tab_etiketler = [
+        f"{ASAMA_META[i][0]} {ASAMA_META[i][1]} ({len(dagilim[i])})"
+        for i in range(1, 7)
+    ]
+    tabs_yd = st.tabs(tab_etiketler)
+
+    for asama, tab in zip(range(1, 7), tabs_yd):
+        with tab:
+            em, lbl, renk, meta_acik = ASAMA_META[asama]
+            liste = sorted(dagilim[asama], key=lambda x: x.get("ns_buy") or 0, reverse=True)
+
+            st.markdown(
+                f"<div style='background:#0D1926;border-left:3px solid {renk};"
+                f"border-radius:6px;padding:10px 16px;margin-bottom:10px;"
+                f"font-size:11px;color:#64748B'>{meta_acik}</div>",
+                unsafe_allow_html=True
+            )
+
+            if not liste:
+                st.info("Bu asamada hisse yok.")
+                continue
+
+            import pandas as _pddf
+            df = _pddf.DataFrame([{
+                "Kod":       r["kod"],
+                "Sektor":    r["sektor"][:22] if r["sektor"] else "",
+                "NS Buy%":   round(r["ns_buy"], 0) if r.get("ns_buy") is not None else None,
+                "Marj%":     round(r["marj"], 0) if r.get("marj") is not None else None,
+                "YenYat%":   round(r["yy_buy"], 0) if r.get("yy_buy") is not None else None,
+                "EFK ist%":  round(r["efk_poz"], 0) if r.get("efk_poz") is not None else None,
+                "PD":        fmt_milyon(r["pd_val"]),
+            } for r in liste])
+
+            st.dataframe(df, hide_index=True, use_container_width=True,
+                         height=min(40 + len(liste) * 35, 500))
+
+            # Detay butonlari
+            bt_cols = st.columns(8)
+            for i, r in enumerate(liste[:24]):
+                with bt_cols[i % 8]:
+                    if st.button(r["kod"], key=f"yd_{asama}_{r['kod']}"):
+                        git_detay(r["kod"])
+
+            st.download_button(
+                "⬇️ Excel Indir",
+                data=df_to_excel_bytes(df),
+                file_name=f"YD_Asama{asama}_{st.session_state.son_donem}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"yd_dl_{asama}"
+            )
+
 # ════════════════════════════════════════════════════════════════════════════
 elif page == "\U0001f504 ROE Tarayici":
     import plotly.graph_objects as go
