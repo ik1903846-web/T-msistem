@@ -1474,6 +1474,17 @@ elif page == "\U0001f504 ROE Tarayici":
     alti_list     = []
     ustu_list     = []
 
+    # Son ceyrek %10+ ROE listesi
+    son_on_list = []
+    for kod, row in son_data.items():
+        pd_val_s = hesapla_pd(row)
+        if not pd_val_s or pd_val_s <= 0: continue
+        son_roe_s = safe_float(row.get(C_ROE, ""))
+        sektor_s = row.get("Hisse Sekt\u00f6r", "")
+        if son_roe_s is not None and son_roe_s >= 10:
+            son_on_list.append({"kod":kod,"sektor":sektor_s,"son_roe":son_roe_s,"pd_val":pd_val_s})
+    son_on_list.sort(key=lambda x: x["son_roe"], reverse=True)
+
     for kod, row in son_data.items():
         pd_val = hesapla_pd(row)
         if not pd_val or pd_val <= 0: continue
@@ -1506,17 +1517,6 @@ elif page == "\U0001f504 ROE Tarayici":
         f"<div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(son_on_list)}</div>"
         f"<div class='mc-lbl'>Son Ceyrek %10+</div></div>"
         f"</div>", unsafe_allow_html=True)
-
-    # Son ceyrek %10+ ROE listesi
-    son_on_list = []
-    for kod, row in son_data.items():
-        pd_val_s = hesapla_pd(row)
-        if not pd_val_s or pd_val_s <= 0: continue
-        son_roe_s = safe_float(row.get(C_ROE, ""))
-        sektor_s = row.get("Hisse Sekt\u00f6r", "")
-        if son_roe_s is not None and son_roe_s >= 10:
-            son_on_list.append({"kod":kod,"sektor":sektor_s,"son_roe":son_roe_s,"pd_val":pd_val_s})
-    son_on_list.sort(key=lambda x: x["son_roe"], reverse=True)
 
     tab_ist, tab_don, tab_alt, tab_ust, tab_on = st.tabs([
         f"\U0001f48e Pirlanta ({len(istikrar_list)})",
