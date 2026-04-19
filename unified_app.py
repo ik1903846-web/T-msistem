@@ -6,7 +6,8 @@ import io
 from datetime import datetime
 
 from unified_engine import (UnifiedEngine, DerinAnaliz, read_excel_bytes, donem_from_filename,
-                             fmt_milyon, safe_float, C_ROE, hesapla_pd, roe_istikrar_hesapla, roe_donus_hesapla)
+                             fmt_milyon, safe_float, C_ROE, hesapla_pd, roe_istikrar_hesapla, roe_donus_hesapla,
+                             yasam_dongusu_hesapla)
 
 st.set_page_config(
     page_title="BIST Analiz Sistemi",
@@ -1027,6 +1028,46 @@ elif page == "\U0001f4ca Detay Analizi":
     st.markdown("<hr>", unsafe_allow_html=True)
     toplam_donem = len(engine.sorted_donems)
 
+
+    # ── Damodaran Yasam Dongusu Karti ──────────────────────────────────────────
+    yd_sonuc = yasam_dongusu_hesapla(engine.quarters, engine.sorted_donems, secilen)
+    if yd_sonuc[0] is not None:
+        yd_asama, yd_label, yd_emoji, yd_aciklama, yd_det = yd_sonuc
+        yd_renk   = yd_det.get("renk", "#94A3B8")
+        yd_metrik = yd_det.get("metrik", "")
+        # Renk cubugu
+        cubuklar = []
+        for i in range(6):
+            bg = yd_renk if i < yd_asama else "#1E3448"
+            cubuklar.append(f"<div style='flex:1;height:6px;border-radius:3px;margin:0 1px;background:{bg}'></div>")
+        cubuk_html = "".join(cubuklar)
+        # Detay satirlar
+        det_parcalar = []
+        if yd_det.get("ns_buy") is not None:
+            det_parcalar.append(f"<span style='font-size:10px;color:#94A3B8'>NS Buy: <b style='color:#E2E8F0'>{yd_det['ns_buy']:.0f}%</b></span>")
+        if yd_det.get("marj_son") is not None:
+            det_parcalar.append(f"<span style='font-size:10px;color:#94A3B8'>Marj: <b style='color:#E2E8F0'>{yd_det['marj_son']:.0f}%</b></span>")
+        if yd_det.get("yy_buy") is not None:
+            det_parcalar.append(f"<span style='font-size:10px;color:#94A3B8'>Yeniden Yat: <b style='color:#E2E8F0'>{yd_det['yy_buy']:.0f}%</b></span>")
+        if yd_det.get("efk_poz_oran") is not None:
+            det_parcalar.append(f"<span style='font-size:10px;color:#94A3B8'>EFK istikrar: <b style='color:#E2E8F0'>%{yd_det['efk_poz_oran']:.0f}</b></span>")
+        det_html = "&nbsp;&nbsp;".join(det_parcalar)
+        # HTML birlesim
+        html_parcalar = [
+            f"<div style='background:#0D1926;border:1px solid {yd_renk};border-radius:12px;padding:14px 18px;margin-bottom:16px'>",
+            f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:8px'>",
+            f"<span style='font-size:26px'>{yd_emoji}</span>",
+            f"<div>",
+            f"<div style='font-size:15px;font-weight:800;color:{yd_renk}'>Asama {yd_asama}/6 — {yd_label}</div>",
+            f"<div style='font-size:10px;color:#475569'>Damodaran Yasam Dongusu &nbsp;|  Degerleme Metrigi: {yd_metrik}</div>",
+            f"</div></div>",
+            f"<div style='display:flex;gap:2px;margin:8px 0'>{cubuk_html}</div>",
+            f"<div style='font-size:11px;color:#64748B;margin-bottom:8px'>{yd_aciklama}</div>",
+            f"<div style='display:flex;gap:12px;flex-wrap:wrap'>{det_html}</div>",
+            f"</div>",
+        ]
+        st.markdown("".join(html_parcalar), unsafe_allow_html=True)
+
     # ── Degerleme Tablosu — HTML flex ile yatay ──────────────────────────────
     st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
                 "\U0001f4ca Degerleme Pozisyonu</h3>", unsafe_allow_html=True)
@@ -1445,7 +1486,6 @@ elif page == "\U0001f4ca Detay Analizi":
         st.plotly_chart(fig_f, use_container_width=True)
 
 
-
 # ════════════════════════════════════════════════════════════════════════════
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1473,17 +1513,6 @@ elif page == "\U0001f504 ROE Tarayici":
     donus_list    = []
     alti_list     = []
     ustu_list     = []
-
-    # Son ceyrek %10+ ROE listesi
-    son_on_list = []
-    for kod, row in son_data.items():
-        pd_val_s = hesapla_pd(row)
-        if not pd_val_s or pd_val_s <= 0: continue
-        son_roe_s = safe_float(row.get(C_ROE, ""))
-        sektor_s = row.get("Hisse Sekt\u00f6r", "")
-        if son_roe_s is not None and son_roe_s >= 10:
-            son_on_list.append({"kod":kod,"sektor":sektor_s,"son_roe":son_roe_s,"pd_val":pd_val_s})
-    son_on_list.sort(key=lambda x: x["son_roe"], reverse=True)
 
     for kod, row in son_data.items():
         pd_val = hesapla_pd(row)
@@ -1514,16 +1543,13 @@ elif page == "\U0001f504 ROE Tarayici":
         f"<div class='mc-lbl'>%30 Altinda</div></div>"
         f"<div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(ustu_list)}</div>"
         f"<div class='mc-lbl'>%30 Ustunde</div></div>"
-        f"<div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(son_on_list)}</div>"
-        f"<div class='mc-lbl'>Son Ceyrek %10+</div></div>"
         f"</div>", unsafe_allow_html=True)
 
-    tab_ist, tab_don, tab_alt, tab_ust, tab_on = st.tabs([
+    tab_ist, tab_don, tab_alt, tab_ust = st.tabs([
         f"\U0001f48e Pirlanta ({len(istikrar_list)})",
         f"\U0001f504 Donus Sinyali ({len(donus_list)})",
         f"\U0001f534 %30 Altinda ({len(alti_list)})",
         f"\U0001f7e2 %30 Ustunde ({len(ustu_list)})",
-        f"\U0001f4c5 Son Ceyrek %10+ ROE ({len(son_on_list)})",
     ])
 
     def roe_tablo(liste, mod="", dl_key="roe_dl"):
@@ -1564,10 +1590,6 @@ elif page == "\U0001f504 ROE Tarayici":
     with tab_ust:
         st.markdown("<div style='background:#0A1C0A;border:1px solid #166534;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son donemde ROE %30 ve uzeri olan hisseler.</div>", unsafe_allow_html=True)
         roe_tablo(ustu_list, "ust", "roe_dl_ust")
-
-    with tab_on:
-        st.markdown("<div style='background:#0A1020;border:1px solid #1E3A8A;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son ceyrek finansal tablolarda ROE %10 ve uzeri aciklayan tum hisseler. ROE yukseldikce sirali.</div>", unsafe_allow_html=True)
-        roe_tablo(son_on_list, "", "roe_dl_on")
 
 # SAYFA 4: TAKİP LİSTESİ
 # ════════════════════════════════════════════════════════════════════════════
