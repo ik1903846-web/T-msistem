@@ -1494,14 +1494,24 @@ elif page == "\U0001f4ca Detay Analizi":
             with st.spinner("Analiz yapiliyor..."):
                 try:
                     import requests as _req
+                    api_key = st.secrets.get("ANTHROPIC_API_KEY","")
+                    if not api_key:
+                        st.warning("Streamlit secrets'a ANTHROPIC_API_KEY ekleyin.")
+                        st.stop()
                     resp = _req.post(
                         "https://api.anthropic.com/v1/messages",
-                        headers={"Content-Type": "application/json"},
+                        headers={"Content-Type": "application/json",
+                                 "x-api-key": api_key,
+                                 "anthropic-version": "2023-06-01"},
                         json={"model": "claude-sonnet-4-20250514", "max_tokens": 1000,
                               "messages": [{"role": "user", "content": prompt}]},
                         timeout=30
                     )
-                    yorum = resp.json()["content"][0]["text"]
+                    resp_data = resp.json()
+                    if "content" not in resp_data:
+                        st.error(f"API Hatasi: {resp_data.get('error',{}).get('message','Bilinmeyen hata')}")
+                        st.stop()
+                    yorum = resp_data["content"][0]["text"]
                     st.session_state["yorum_" + secilen] = yorum
                 except Exception as ex:
                     st.error(f"Yorum alinamadi: {ex}")
@@ -1534,15 +1544,24 @@ elif page == "\U0001f4ca Detay Analizi":
                         f"- Hisseyi etkileyebilecek makro/sektor haberleri\n"
                         f"Her maddeyi kaynak URL ile belirt. Bulamazsan 'Bilgi yok' yaz."
                     )
+                    api_key2 = st.secrets.get("ANTHROPIC_API_KEY","")
+                    if not api_key2:
+                        st.warning("Streamlit secrets'a ANTHROPIC_API_KEY ekleyin.")
+                        st.stop()
                     resp2 = _req2.post(
                         "https://api.anthropic.com/v1/messages",
-                        headers={"Content-Type": "application/json"},
+                        headers={"Content-Type": "application/json",
+                                 "x-api-key": api_key2,
+                                 "anthropic-version": "2023-06-01"},
                         json={"model": "claude-sonnet-4-20250514", "max_tokens": 800,
                               "tools": [{"type": "web_search_20250305", "name": "web_search"}],
                               "messages": [{"role": "user", "content": haber_prompt}]},
                         timeout=45
                     )
                     data2 = resp2.json()
+                    if "error" in data2:
+                        st.error(f"API Hatasi: {data2['error'].get('message','')}")
+                        st.stop()
                     parts = []
                     for b in data2.get("content", []):
                         if b.get("type") == "text" and b.get("text","").strip():
