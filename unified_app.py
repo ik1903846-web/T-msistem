@@ -1445,6 +1445,113 @@ elif page == "\U0001f4ca Detay Analizi":
         st.plotly_chart(fig_f, use_container_width=True)
 
 
+    # Haber & Yorum
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
+                "\U0001f4f0 Haber & Finansal Yorum</h3>", unsafe_allow_html=True)
+
+    col_yorum, col_haber = st.columns([1, 1])
+
+    with col_yorum:
+        st.markdown("<p style=\"font-size:12px;color:#475569;margin-bottom:8px\">"
+                    "\U0001f916 Claude Finansal Yorumu</p>", unsafe_allow_html=True)
+        if st.button("\U0001f4ca Finansal Yorum Al", key="yorum_btn", use_container_width=True):
+            son_v = engine.son_data.get(secilen, {})
+            efk_v   = safe_float(son_v.get("Esas Faaliyet Kar\u0131 /Zarar\u0131 Net (Y\u0131ll\u0131k)", ""))
+            pd_v    = hesapla_pd(son_v)
+            pddd_v  = safe_float(son_v.get("Piyasa De\u011feri / Defter De\u011feri", ""))
+            roe_v   = safe_float(son_v.get("\u00d6zsermaye Karl\u0131l\u0131\u011f\u0131 (ROE) Y\u0131ll\u0131k (%)", ""))
+            marj_v  = safe_float(son_v.get("Esas Faaliyet Kar Marj\u0131 (Y\u0131ll\u0131k)", ""))
+            pio_v   = safe_float(son_v.get("Piotroski F Skor", ""))
+            skac, hdum, _ = roe_istikrar_hesapla(engine.quarters, engine.sorted_donems, secilen)
+            kat_tum = da.kat_buyume_tablosu()
+            efk_kat = next((i["kat"] for i in kat_tum if i["kalem"]=="EFK" and i.get("kat")), None)
+            pd_kat  = next((i["kat"] for i in kat_tum if i["kalem"]=="Piyasa Degeri" and i.get("kat")), None)
+            ozk_kat = next((i["kat"] for i in kat_tum if i["kalem"]=="Ozkaynaklar" and i.get("kat")), None)
+            fkpd_str = f"{efk_v/pd_v*100:.1f}%" if efk_v and pd_v else "-"
+
+            prompt = (
+                f"Sen deneyimli bir BIST finansal analistisin. "
+                f"{secilen} ({sektor}) hissesini asagidaki verilere gore Turkce analiz et.\n\n"
+                f"METRIKLER:\n"
+                f"- EFK: {fmt_milyon(efk_v)} TL | PD: {fmt_milyon(pd_v)} TL | FK/PD%: {fkpd_str}\n"
+                f"- PD/DD: {pddd_v:.2f if pddd_v else '-'} | ROE: {roe_v:.1f if roe_v else '-'}% "
+                f"| Marj: {marj_v:.1f if marj_v else '-'}% | Piotroski: {pio_v:.0f if pio_v else '-'}/9\n"
+                f"- ROE 30+ Donem: {skac} | Pirlanta: {'EVET' if hdum else 'Hayir'}\n"
+                f"- EFK Kat Buyume: {f'{efk_kat:.1f}x' if efk_kat else '-'} | "
+                f"PD Kat: {f'{pd_kat:.1f}x' if pd_kat else '-'} | "
+                f"Ozk Kat: {f'{ozk_kat:.1f}x' if ozk_kat else '-'}\n\n"
+                f"Sunlari yorumla:\n"
+                f"1. **Guclu Yonler** - Ne iyi?\n"
+                f"2. **Risk Faktorleri** - Dikkat edilmesi gerekenler?\n"
+                f"3. **Deger Analizi** - Ucuz mu, pahali mi?\n"
+                f"4. **GXSMODUJ Degerlendirmesi** - Bebek hisse/pirlanta kriterleri?\n"
+                f"5. **Ozet Kani** - 1-2 cumle\n\n"
+                f"Not: Bu yatirim tavsiyesi degildir."
+            )
+
+            with st.spinner("Analiz yapiliyor..."):
+                try:
+                    import requests as _req
+                    resp = _req.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={"Content-Type": "application/json"},
+                        json={"model": "claude-sonnet-4-20250514", "max_tokens": 1000,
+                              "messages": [{"role": "user", "content": prompt}]},
+                        timeout=30
+                    )
+                    yorum = resp.json()["content"][0]["text"]
+                    st.session_state["yorum_" + secilen] = yorum
+                except Exception as ex:
+                    st.error(f"Yorum alinamadi: {ex}")
+
+        yorum_key = "yorum_" + secilen
+        if yorum_key in st.session_state:
+            yorum_html = st.session_state[yorum_key].replace("\n", "<br>")
+            st.markdown(
+                "<div style='background:#0D1926;border:1px solid #1E3448;border-radius:10px;"
+                "padding:14px 18px;font-size:12px;color:#E2E8F0;line-height:1.7'>"
+                + yorum_html + "</div>", unsafe_allow_html=True)
+
+    with col_haber:
+        st.markdown("<p style=\"font-size:12px;color:#475569;margin-bottom:8px\">"
+                    "\U0001f4f0 Guncel Haberler & KAP</p>", unsafe_allow_html=True)
+        if st.button("\U0001f50d Haberleri Getir", key="haber_btn", use_container_width=True):
+            with st.spinner("Haberler aranıyor..."):
+                try:
+                    import requests as _req2
+                    haber_prompt = (
+                        f"BIST hissesi {secilen} icin web araştirmasi yap. "
+                        f"Kaynak: KAP (kap.org.tr), borsagundem.com, bloomberght.com, "
+                        f"LinkedIn, investing.com/tr. "
+                        f"Son onemli gelismeleri madde madde Turkce yaz: "
+                        f"KAP aciklamalari, mali tablolar, yonetim haberleri, "
+                        f"analist beklentileri, hedef fiyatlar, sektor haberleri. "
+                        f"Her maddeye kaynak ekle. Kisa ve oz ol."
+                    )
+                    resp2 = _req2.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={"Content-Type": "application/json"},
+                        json={"model": "claude-sonnet-4-20250514", "max_tokens": 800,
+                              "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+                              "messages": [{"role": "user", "content": haber_prompt}]},
+                        timeout=45
+                    )
+                    data2 = resp2.json()
+                    haber = " ".join(b["text"] for b in data2.get("content", []) if b.get("type") == "text")
+                    st.session_state["haber_" + secilen] = haber or "Haber bulunamadi."
+                except Exception as ex2:
+                    st.error(f"Haber alinamadi: {ex2}")
+
+        haber_key = "haber_" + secilen
+        if haber_key in st.session_state:
+            haber_html = st.session_state[haber_key].replace("\n", "<br>")
+            st.markdown(
+                "<div style='background:#0D1926;border:1px solid #1E3448;border-radius:10px;"
+                "padding:14px 18px;font-size:12px;color:#E2E8F0;line-height:1.7'>"
+                + haber_html + "</div>", unsafe_allow_html=True)
+
+
 # ════════════════════════════════════════════════════════════════════════════
 
 # ════════════════════════════════════════════════════════════════════════════
