@@ -1445,48 +1445,6 @@ elif page == "\U0001f4ca Detay Analizi":
         st.plotly_chart(fig_f, use_container_width=True)
 
 
-    # Haber & Linkler
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("<h3 style=\"color:#E2E8F0;font-size:15px;margin-bottom:10px\">"
-                "\U0001f4f0 Haber & Kaynaklar</h3>", unsafe_allow_html=True)
-
-    kap_url      = f"https://www.kap.org.tr/tr/arama?q={secilen}"
-    bgundem_url  = f"https://www.borsagundem.com/hisse/{secilen}"
-    bloomberg_url= f"https://www.bloomberght.com/hisse/{secilen}"
-    linkedin_url = f"https://www.linkedin.com/search/results/all/?keywords={secilen}+hisse"
-    investing_url= f"https://tr.investing.com/search/?q={secilen}"
-    isyatirim_url= f"https://www.isyatirim.com.tr/analiz-ve-raporlar/hisse?hisse={secilen}"
-
-    linkler = [
-        ("\U0001f4cb KAP Açıklamaları",    kap_url,       "#1E3A8A", "Resmi özel durum açıklamaları"),
-        ("\U0001f4ca Borsa Gündem",         bgundem_url,   "#166534", "Haber & analist yorumları"),
-        ("\U0001f4f0 Bloomberg HT",         bloomberg_url, "#7F1D1D", "Finansal haberler"),
-        ("\U0001f4bc LinkedIn",             linkedin_url,  "#1E3448", "Şirket & yönetim haberleri"),
-        ("\U0001f310 Investing.com",        investing_url, "#92400E", "Teknik & temel analiz"),
-        ("\U0001f3e6 İş Yatırım Analiz",   isyatirim_url, "#1E3448", "Analist raporu & hedef fiyat"),
-    ]
-
-    cols = st.columns(3)
-    for i, (lbl, url, renk, aciklama) in enumerate(linkler):
-        with cols[i % 3]:
-            st.markdown(
-                f"<a href=\"{url}\" target=\"_blank\" style=\"text-decoration:none\">"
-                f"<div style=\"background:#0D1926;border:1px solid {renk};border-radius:10px;"
-                f"padding:12px 14px;margin-bottom:8px;cursor:pointer\">"
-                f"<div style=\"font-size:13px;font-weight:700;color:#E2E8F0\">{lbl}</div>"
-                f"<div style=\"font-size:10px;color:#475569;margin-top:3px\">{aciklama}</div>"
-                f"</div></a>",
-                unsafe_allow_html=True
-            )
-
-    st.markdown(
-        f"<div style=\"background:#0D1926;border:1px solid #1E3448;border-radius:8px;"
-        f"padding:10px 16px;margin-top:4px;font-size:11px;color:#475569\">"
-        f"Tüm linkler <b style=\"color:#38BDF8\">{secilen}</b> için arama sonuçlarına gider. "
-        f"Yeni sekmede açılır.</div>",
-        unsafe_allow_html=True
-    )
-
 
 # ════════════════════════════════════════════════════════════════════════════
 
