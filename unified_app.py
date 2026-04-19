@@ -1531,7 +1531,7 @@ elif page == "🔄 Yasam Dongusu":
         if sonuc[0] is None: continue
         asama, label, emoji, aciklama, det = sonuc
         dagilim[asama].append({
-            "kod": kod, "sektor": row.get(C_SEKTOR, ""),
+            "kod": kod, "sektor": row.get("Hisse Sektör", ""),
             "ns_buy": det.get("ns_buy"), "marj": det.get("marj_son"),
             "yy_buy": det.get("yy_buy"), "efk_poz": det.get("efk_poz_oran"),
             "pd_val": pd_val,
