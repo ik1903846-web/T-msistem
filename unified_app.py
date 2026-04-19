@@ -1475,8 +1475,8 @@ elif page == "\U0001f4ca Detay Analizi":
                 f"{secilen} ({sektor}) hissesini asagidaki verilere gore Turkce analiz et.\n\n"
                 f"METRIKLER:\n"
                 f"- EFK: {fmt_milyon(efk_v)} TL | PD: {fmt_milyon(pd_v)} TL | FK/PD%: {fkpd_str}\n"
-                f"- PD/DD: {pddd_v:.2f if pddd_v else '-'} | ROE: {roe_v:.1f if roe_v else '-'}% "
-                f"| Marj: {marj_v:.1f if marj_v else '-'}% | Piotroski: {pio_v:.0f if pio_v else '-'}/9\n"
+                f"- PD/DD: {round(pddd_v,2) if pddd_v else '-'} | ROE: {round(roe_v,1) if roe_v else '-'}% "
+                f"| Marj: {round(marj_v,1) if marj_v else '-'}% | Piotroski: {int(pio_v) if pio_v else '-'}/9\n"
                 f"- ROE 30+ Donem: {skac} | Pirlanta: {'EVET' if hdum else 'Hayir'}\n"
                 f"- EFK Kat Buyume: {f'{efk_kat:.1f}x' if efk_kat else '-'} | "
                 f"PD Kat: {f'{pd_kat:.1f}x' if pd_kat else '-'} | "
@@ -1486,7 +1486,8 @@ elif page == "\U0001f4ca Detay Analizi":
                 f"2. **Risk Faktorleri** - Dikkat edilmesi gerekenler?\n"
                 f"3. **Deger Analizi** - Ucuz mu, pahali mi?\n"
                 f"4. **GXSMODUJ Degerlendirmesi** - Bebek hisse/pirlanta kriterleri?\n"
-                f"5. **Ozet Kani** - 1-2 cumle\n\n"
+                f"5. **Pazar Istahi & Rekabet** - Sektor konumu, rakipler, buyume potansiyeli\n"
+                f"6. **Ozet Kani** - 1-2 cumle\n\n"
                 f"Not: Bu yatirim tavsiyesi degildir."
             )
 
@@ -1521,13 +1522,17 @@ elif page == "\U0001f4ca Detay Analizi":
                 try:
                     import requests as _req2
                     haber_prompt = (
-                        f"BIST hissesi {secilen} icin web araştirmasi yap. "
-                        f"Kaynak: KAP (kap.org.tr), borsagundem.com, bloomberght.com, "
-                        f"LinkedIn, investing.com/tr. "
-                        f"Son onemli gelismeleri madde madde Turkce yaz: "
-                        f"KAP aciklamalari, mali tablolar, yonetim haberleri, "
-                        f"analist beklentileri, hedef fiyatlar, sektor haberleri. "
-                        f"Her maddeye kaynak ekle. Kisa ve oz ol."
+                        f"{secilen} hissesi ({sektor} sektoru) hakkinda web'de arama yap. "
+                        f"kap.org.tr, borsagundem.com, bloomberght.com, linkedin.com, "
+                        f"investing.com/tr sitelerinde ara. "
+                        f"Asagidaki konularda madde madde Turkce bilgi ver:\n"
+                        f"- Son KAP ozel durum aciklamalari\n"
+                        f"- Son mali tablo aciklamalari ve onemli notlar\n"
+                        f"- Yonetim ve CEO haberleri, LinkedIn paylasimlari\n"
+                        f"- Analist raporu ve hedef fiyat tahmini\n"
+                        f"- Sektordeki rekabet ortami ve rakip hisseler\n"
+                        f"- Hisseyi etkileyebilecek makro/sektor haberleri\n"
+                        f"Her maddeyi kaynak URL ile belirt. Bulamazsan 'Bilgi yok' yaz."
                     )
                     resp2 = _req2.post(
                         "https://api.anthropic.com/v1/messages",
@@ -1538,8 +1543,12 @@ elif page == "\U0001f4ca Detay Analizi":
                         timeout=45
                     )
                     data2 = resp2.json()
-                    haber = " ".join(b["text"] for b in data2.get("content", []) if b.get("type") == "text")
-                    st.session_state["haber_" + secilen] = haber or "Haber bulunamadi."
+                    parts = []
+                    for b in data2.get("content", []):
+                        if b.get("type") == "text" and b.get("text","").strip():
+                            parts.append(b["text"].strip())
+                    haber = "\n\n".join(parts)
+                    st.session_state["haber_" + secilen] = haber if haber else "Haber bulunamadi — kaynak erisimi kisitli olabilir."
                 except Exception as ex2:
                     st.error(f"Haber alinamadi: {ex2}")
 
