@@ -1503,13 +1503,27 @@ elif page == "\U0001f504 ROE Tarayici":
         f"<div class='mc-lbl'>%30 Altinda</div></div>"
         f"<div class='mc mc-green'><div class='mc-num' style='color:#4ADE80'>{len(ustu_list)}</div>"
         f"<div class='mc-lbl'>%30 Ustunde</div></div>"
+        f"<div class='mc mc-blue'><div class='mc-num' style='color:#38BDF8'>{len(son_on_list)}</div>"
+        f"<div class='mc-lbl'>Son Ceyrek %10+</div></div>"
         f"</div>", unsafe_allow_html=True)
 
-    tab_ist, tab_don, tab_alt, tab_ust = st.tabs([
+    # Son ceyrek %10+ ROE listesi
+    son_on_list = []
+    for kod, row in son_data.items():
+        pd_val_s = hesapla_pd(row)
+        if not pd_val_s or pd_val_s <= 0: continue
+        son_roe_s = safe_float(row.get(C_ROE, ""))
+        sektor_s = row.get("Hisse Sekt\u00f6r", "")
+        if son_roe_s is not None and son_roe_s >= 10:
+            son_on_list.append({"kod":kod,"sektor":sektor_s,"son_roe":son_roe_s,"pd_val":pd_val_s})
+    son_on_list.sort(key=lambda x: x["son_roe"], reverse=True)
+
+    tab_ist, tab_don, tab_alt, tab_ust, tab_on = st.tabs([
         f"\U0001f48e Pirlanta ({len(istikrar_list)})",
         f"\U0001f504 Donus Sinyali ({len(donus_list)})",
         f"\U0001f534 %30 Altinda ({len(alti_list)})",
         f"\U0001f7e2 %30 Ustunde ({len(ustu_list)})",
+        f"\U0001f4c5 Son Ceyrek %10+ ROE ({len(son_on_list)})",
     ])
 
     def roe_tablo(liste, mod="", dl_key="roe_dl"):
@@ -1550,6 +1564,10 @@ elif page == "\U0001f504 ROE Tarayici":
     with tab_ust:
         st.markdown("<div style='background:#0A1C0A;border:1px solid #166534;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son donemde ROE %30 ve uzeri olan hisseler.</div>", unsafe_allow_html=True)
         roe_tablo(ustu_list, "ust", "roe_dl_ust")
+
+    with tab_on:
+        st.markdown("<div style='background:#0A1020;border:1px solid #1E3A8A;border-radius:8px;padding:10px 16px;margin-bottom:10px;font-size:12px;color:#64748B'>Son ceyrek finansal tablolarda ROE %10 ve uzeri aciklayan tum hisseler. ROE yukseldikce sirali.</div>", unsafe_allow_html=True)
+        roe_tablo(son_on_list, "", "roe_dl_on")
 
 # SAYFA 4: TAKİP LİSTESİ
 # ════════════════════════════════════════════════════════════════════════════
