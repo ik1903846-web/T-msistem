@@ -128,7 +128,7 @@ hr { border-color:#0F2040 !important; }
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────────
 for k,v in [('quarters',{}),('engine',None),('son_donem',None),('son_yukleme',None),
-             ('watchlist',{}),('geri_yil',3)]:
+             ('watchlist',{}),('geri_yil',3),('hisse_git',None),('aktif_sayfa',None)]:
     if k not in st.session_state: st.session_state[k]=v
 
 def df_to_excel_bytes(df):
@@ -157,11 +157,27 @@ def badge(k):
 
 KARAR_RENK = {'GUCLU ADAY':'#4ADE80','POTANSIYEL':'#FCD34D','ZAYIF':'#FB923C','ELENDI':'#F87171'}
 
+def git_detay(kod):
+    st.session_state.hisse_git = kod
+    st.session_state.aktif_sayfa = "\U0001f4ca Detay Analizi"
+    st.rerun()
+
 # ── SIDEBAR ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("<div class='sb-brand'>BIST <span>ANALiZ</span></div>", unsafe_allow_html=True)
     st.markdown("<div class='sb-sub'>FARK · GERI · BEBEK · KESISIM</div>", unsafe_allow_html=True)
 
+    if st.session_state.aktif_sayfa:
+        _sayfa_listesi = [
+            "\U0001f50d FARK Scanner","\U0001f4c9 GER\u0130 Taray\u0131c\u0131",
+            "\U0001f3af Kesisim","\U0001f476 Bebek Hisse","\U0001f4ca Detay Analizi",
+            "\U0001f504 Yasam Dongusu","\U0001f504 ROE Tarayici",
+            "\u2b50 Takip Listesi","\U0001f4da Metodoloji","\u2699\ufe0f Ayarlar"
+        ]
+        _baslangic = _sayfa_listesi.index(st.session_state.aktif_sayfa) if st.session_state.aktif_sayfa in _sayfa_listesi else 0
+        st.session_state.aktif_sayfa = None
+    else:
+        _baslangic = 0
     page = st.radio("", [
         "\U0001f50d FARK Scanner",
         "\U0001f4c9 GER\u0130 Taray\u0131c\u0131",
@@ -173,7 +189,7 @@ with st.sidebar:
         "\u2b50 Takip Listesi",
         "\U0001f4da Metodoloji",
         "\u2699\ufe0f Ayarlar"
-    ], label_visibility="collapsed")
+    ], label_visibility="collapsed", index=_baslangic)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
