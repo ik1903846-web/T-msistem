@@ -143,6 +143,284 @@ def roe_istikrar_hesapla(quarters, donems, kod):
     return son_kac, hic_dusmedi, son_roe
 
 
+
+def yasam_dongusu_hesapla(quarters, donems, kod):
+    """
+    Damodaran Kurumsal Yasam Dongusu - 6 Asama
+    Kaynak: The Corporate Life Cycle (Damodaran, 2024)
+
+    3 Ana Kriter:
+    1. Gelir buyumesi (NS)
+    2. Faaliyet marji (EFK Marji)
+    3. Yeniden yatirim proxy (Duran Varlik buyumesi)
+
+    Ek: EFK istikrari, Nakit akisi, ROE
+    """
+
+    def seri(col):
+        return [safe_float(quarters[d].get(kod, {}).get(col, "")) for d in donems]
+
+    efk_s  = [v for v in seri(C_EFK)   if v is not None]
+    ns_s   = [v for v in seri(C_NS)    if v is not None]
+    marj_s = [v for v in seri(C_MARJ)  if v is not None]
+    nkt_s  = [v for v in seri(C_NAKIT) if v is not None]
+    roe_s  = [v for v in seri(C_ROE)   if v is not None]
+    dur_s  = [v for v in seri(C_DURAN) if v is not None]
+
+    if len(ns_s) < 4 or len(efk_s) < 4:
+        return None, "Yetersiz veri", {}
+
+    son_efk  = efk_s[-1]
+    son_marj = marj_s[-1] if marj_s else None
+    son_nkt  = nkt_s[-1]  if nkt_s  else None
+    son_roe  = roe_s[-1]  if roe_s  else None
+
+    # 1. GELiR BUYUMESi (2 yillik = 8 donem)
+    ns_buy = None
+    if len(ns_s) >= 8 and ns_s[-8] and ns_s[-8] > 0:
+        ns_buy = (ns_s[-1] / ns_s[-8] - 1) * 100
+    elif len(ns_s) >= 4 and ns_s[-4] and ns_s[-4] > 0:
+        ns_buy = (ns_s[-1] / ns_s[-4] - 1) * 100
+
+    # 2. MARJ TREND (son 4 donem ort vs onceki 4 donem ort)
+    marj_son = sum(marj_s[-4:]) / 4 if len(marj_s) >= 4 else son_marj
+    marj_onc = sum(marj_s[-8:-4]) / 4 if len(marj_s) >= 8 else marj_son
+    marj_trend = (marj_son - marj_onc) if (marj_son is not None and marj_onc is not None) else 0
+
+    # 3. YENiDEN YATIRIM PROXY (duran varlik buyumesi, son 4 donem)
+    yy_buy = None
+    if len(dur_s) >= 4 and dur_s[-4] and dur_s[-4] > 0:
+        yy_buy = (dur_s[-1] / dur_s[-4] - 1) * 100
+
+    # EFK istikrari (son 8 donemin kaci pozitif)
+    efk_poz_oran = sum(1 for x in efk_s[-8:] if x > 0) / min(len(efk_s), 8)
+
+    # Nakit durumu
+    nkt_poz   = son_nkt is not None and son_nkt > 0
+    nkt_guclu = nkt_poz and son_efk and son_efk > 0 and son_nkt > son_efk * 0.5
+
+    # EFK buyume (son 8 vs onceki 8)
+    efk_buy = None
+    if len(efk_s) >= 8 and efk_s[-8] and efk_s[-8] > 0:
+        efk_buy = (efk_s[-1] / efk_s[-8] - 1) * 100
+
+    # ── 6 ASAMA ─────────────────────────────────────────────────────────────
+
+    # 1. BASLANGIC — EFK cogunlukla negatif, nakit yakiyor
+    if efk_poz_oran < 0.5 or son_efk <= 0:
+        asama, label, emoji, renk = 1, "Baslangic", "🌱", "#94A3B8"
+        aciklama = (
+            "Is modeli henuz oturmamis. EFK istikrarsiz veya negatif. "
+            "Nakit yakiliyor, sermayeye erisim kritik. "
+            "Deger hikaye ve pazar potansiyeline gore sekillenir."
+        )
+        metrik = "EV/Pazar Potansiyeli"
+
+    # 2. GENC BUYUME — Gelir cok hizli (>%50), marj dusuk/yukseliyor
+    elif ns_buy is not None and ns_buy >= 50 and (son_marj is None or son_marj < 10) and marj_trend >= 0:
+        asama, label, emoji, renk = 2, "Genc Buyume", "🧒", "#38BDF8"
+        aciklama = (
+            f"Gelir hizla buyuyor ({ns_buy:.0f}%). "
+            "Marj dusuk ama yukseliyor. Is modeli ispatlanmakta. "
+            "Nakit ihtiyaci yuksek, yeniden yatirim maksimum."
+        )
+        metrik = "EV/Satis"
+
+    # 3. YUKSEK BUYUME — Gelir hizli (%20-50), marj yukseliyor, EFK guclu
+    elif ns_buy is not None and ns_buy >= 20 and efk_poz_oran >= 0.7 and marj_trend >= 0:
+        asama, label, emoji, renk = 3, "Yuksek Buyume", "🚀", "#4ADE80"
+        aciklama = (
+            f"Guclu buyume evresi — gelir {ns_buy:.0f}% artti. "
+            "EFK istikrari yuksek, marj yukseliyor. "
+            "Yeniden yatirim yuksek, nakit akisi pozitife donuyor."
+        )
+        metrik = "PEG (FK/Buyume)"
+
+    # 6. DUSUS — Gelir azaliyor, marj dusuyor, EFK bozuluyor
+    elif (ns_buy is not None and ns_buy < -5) or (efk_buy is not None and efk_buy < -20 and marj_trend < -3):
+        asama, label, emoji, renk = 6, "Dusus", "📉", "#F87171"
+        aciklama = (
+            "Gelir ve karlilik geriliyor. Rekabet baskisi veya pazar daralmasinin isareti. "
+            "Kapasite azaltma, borc odeme ve varlik satisi gundemde. "
+            "Deger varlik likiditesi ve nakit akisina gore belirlenir."
+        )
+        metrik = "PD/DD, EV/Yatirim"
+
+    # 5. OLGUN/STABiL — Dusuk buyume, yuksek marj, guclu nakit, yatirim dusuk
+    elif (ns_buy is None or ns_buy < 10) and son_marj is not None and son_marj >= 10 and nkt_guclu:
+        asama, label, emoji, renk = 5, "Olgun/Stabil", "🏛️", "#FCD34D"
+        aciklama = (
+            "Buyume yavaslamis, marj yuksek ve stabil. "
+            "Fazla nakit uretiliyor. Yeniden yatirim dusuk. "
+            "Rekabetin savunulmasi ve yeni pazar arayisi on planda."
+        )
+        metrik = "F/K, EV/FAVOK"
+
+    # 4. OLGUN BUYUME — Ilimli buyume (%10-20), yuksek marj, nakit yeterli
+    else:
+        asama, label, emoji, renk = 4, "Olgun Buyume", "💪", "#A78BFA"
+        aciklama = (
+            f"Buyume suruyor ama olgunlasiyor"
+            f"{f' ({ns_buy:.0f}%)' if ns_buy is not None else ''}. "
+            "Marj yuksek ve stabil. Nakit akisi yatirimlari karsilar durumda. "
+            "Rekabet avantaji korunuyor, borclanma kapasitesi artmakta."
+        )
+        metrik = "PEG (FK/Buyume)"
+
+    detaylar = {
+        "ns_buy":       round(ns_buy, 1)    if ns_buy  is not None else None,
+        "marj_son":     round(marj_son, 1)  if marj_son is not None else None,
+        "marj_trend":   round(marj_trend,1) if marj_trend is not None else None,
+        "yy_buy":       round(yy_buy, 1)    if yy_buy  is not None else None,
+        "efk_poz_oran": round(efk_poz_oran * 100, 0),
+        "nkt_poz":      nkt_poz,
+        "efk_buy":      round(efk_buy, 1)   if efk_buy is not None else None,
+        "son_roe":      round(son_roe, 1)   if son_roe is not None else None,
+        "metrik":       metrik,
+        "renk":         renk,
+    }
+    return asama, label, emoji, aciklama, detaylar
+
+
+
+def yasam_dongusu_hesapla(quarters, donems, kod):
+    """
+    Damodaran Kurumsal Yasam Dongusu - 6 Asama
+    Kaynak: The Corporate Life Cycle (Damodaran, 2024)
+
+    3 Ana Kriter:
+    1. Gelir buyumesi (NS)
+    2. Faaliyet marji (EFK Marji)
+    3. Yeniden yatirim proxy (Duran Varlik buyumesi)
+
+    Ek: EFK istikrari, Nakit akisi, ROE
+    """
+
+    def seri(col):
+        return [safe_float(quarters[d].get(kod, {}).get(col, "")) for d in donems]
+
+    efk_s  = [v for v in seri(C_EFK)   if v is not None]
+    ns_s   = [v for v in seri(C_NS)    if v is not None]
+    marj_s = [v for v in seri(C_MARJ)  if v is not None]
+    nkt_s  = [v for v in seri(C_NAKIT) if v is not None]
+    roe_s  = [v for v in seri(C_ROE)   if v is not None]
+    dur_s  = [v for v in seri(C_DURAN) if v is not None]
+
+    if len(ns_s) < 4 or len(efk_s) < 4:
+        return None, "Yetersiz veri", {}
+
+    son_efk  = efk_s[-1]
+    son_marj = marj_s[-1] if marj_s else None
+    son_nkt  = nkt_s[-1]  if nkt_s  else None
+    son_roe  = roe_s[-1]  if roe_s  else None
+
+    # 1. GELiR BUYUMESi (2 yillik = 8 donem)
+    ns_buy = None
+    if len(ns_s) >= 8 and ns_s[-8] and ns_s[-8] > 0:
+        ns_buy = (ns_s[-1] / ns_s[-8] - 1) * 100
+    elif len(ns_s) >= 4 and ns_s[-4] and ns_s[-4] > 0:
+        ns_buy = (ns_s[-1] / ns_s[-4] - 1) * 100
+
+    # 2. MARJ TREND (son 4 donem ort vs onceki 4 donem ort)
+    marj_son = sum(marj_s[-4:]) / 4 if len(marj_s) >= 4 else son_marj
+    marj_onc = sum(marj_s[-8:-4]) / 4 if len(marj_s) >= 8 else marj_son
+    marj_trend = (marj_son - marj_onc) if (marj_son is not None and marj_onc is not None) else 0
+
+    # 3. YENiDEN YATIRIM PROXY (duran varlik buyumesi, son 4 donem)
+    yy_buy = None
+    if len(dur_s) >= 4 and dur_s[-4] and dur_s[-4] > 0:
+        yy_buy = (dur_s[-1] / dur_s[-4] - 1) * 100
+
+    # EFK istikrari (son 8 donemin kaci pozitif)
+    efk_poz_oran = sum(1 for x in efk_s[-8:] if x > 0) / min(len(efk_s), 8)
+
+    # Nakit durumu
+    nkt_poz   = son_nkt is not None and son_nkt > 0
+    nkt_guclu = nkt_poz and son_efk and son_efk > 0 and son_nkt > son_efk * 0.5
+
+    # EFK buyume (son 8 vs onceki 8)
+    efk_buy = None
+    if len(efk_s) >= 8 and efk_s[-8] and efk_s[-8] > 0:
+        efk_buy = (efk_s[-1] / efk_s[-8] - 1) * 100
+
+    # ── 6 ASAMA ─────────────────────────────────────────────────────────────
+
+    # 1. BASLANGIC — EFK cogunlukla negatif, nakit yakiyor
+    if efk_poz_oran < 0.5 or son_efk <= 0:
+        asama, label, emoji, renk = 1, "Baslangic", "🌱", "#94A3B8"
+        aciklama = (
+            "Is modeli henuz oturmamis. EFK istikrarsiz veya negatif. "
+            "Nakit yakiliyor, sermayeye erisim kritik. "
+            "Deger hikaye ve pazar potansiyeline gore sekillenir."
+        )
+        metrik = "EV/Pazar Potansiyeli"
+
+    # 2. GENC BUYUME — Gelir cok hizli (>%50), marj dusuk/yukseliyor
+    elif ns_buy is not None and ns_buy >= 50 and (son_marj is None or son_marj < 10) and marj_trend >= 0:
+        asama, label, emoji, renk = 2, "Genc Buyume", "🧒", "#38BDF8"
+        aciklama = (
+            f"Gelir hizla buyuyor ({ns_buy:.0f}%). "
+            "Marj dusuk ama yukseliyor. Is modeli ispatlanmakta. "
+            "Nakit ihtiyaci yuksek, yeniden yatirim maksimum."
+        )
+        metrik = "EV/Satis"
+
+    # 3. YUKSEK BUYUME — Gelir hizli (%20-50), marj yukseliyor, EFK guclu
+    elif ns_buy is not None and ns_buy >= 20 and efk_poz_oran >= 0.7 and marj_trend >= 0:
+        asama, label, emoji, renk = 3, "Yuksek Buyume", "🚀", "#4ADE80"
+        aciklama = (
+            f"Guclu buyume evresi — gelir {ns_buy:.0f}% artti. "
+            "EFK istikrari yuksek, marj yukseliyor. "
+            "Yeniden yatirim yuksek, nakit akisi pozitife donuyor."
+        )
+        metrik = "PEG (FK/Buyume)"
+
+    # 6. DUSUS — Gelir azaliyor, marj dusuyor, EFK bozuluyor
+    elif (ns_buy is not None and ns_buy < -5) or (efk_buy is not None and efk_buy < -20 and marj_trend < -3):
+        asama, label, emoji, renk = 6, "Dusus", "📉", "#F87171"
+        aciklama = (
+            "Gelir ve karlilik geriliyor. Rekabet baskisi veya pazar daralmasinin isareti. "
+            "Kapasite azaltma, borc odeme ve varlik satisi gundemde. "
+            "Deger varlik likiditesi ve nakit akisina gore belirlenir."
+        )
+        metrik = "PD/DD, EV/Yatirim"
+
+    # 5. OLGUN/STABiL — Dusuk buyume, yuksek marj, guclu nakit, yatirim dusuk
+    elif (ns_buy is None or ns_buy < 10) and son_marj is not None and son_marj >= 10 and nkt_guclu:
+        asama, label, emoji, renk = 5, "Olgun/Stabil", "🏛️", "#FCD34D"
+        aciklama = (
+            "Buyume yavaslamis, marj yuksek ve stabil. "
+            "Fazla nakit uretiliyor. Yeniden yatirim dusuk. "
+            "Rekabetin savunulmasi ve yeni pazar arayisi on planda."
+        )
+        metrik = "F/K, EV/FAVOK"
+
+    # 4. OLGUN BUYUME — Ilimli buyume (%10-20), yuksek marj, nakit yeterli
+    else:
+        asama, label, emoji, renk = 4, "Olgun Buyume", "💪", "#A78BFA"
+        aciklama = (
+            f"Buyume suruyor ama olgunlasiyor"
+            f"{f' ({ns_buy:.0f}%)' if ns_buy is not None else ''}. "
+            "Marj yuksek ve stabil. Nakit akisi yatirimlari karsilar durumda. "
+            "Rekabet avantaji korunuyor, borclanma kapasitesi artmakta."
+        )
+        metrik = "PEG (FK/Buyume)"
+
+    detaylar = {
+        "ns_buy":       round(ns_buy, 1)    if ns_buy  is not None else None,
+        "marj_son":     round(marj_son, 1)  if marj_son is not None else None,
+        "marj_trend":   round(marj_trend,1) if marj_trend is not None else None,
+        "yy_buy":       round(yy_buy, 1)    if yy_buy  is not None else None,
+        "efk_poz_oran": round(efk_poz_oran * 100, 0),
+        "nkt_poz":      nkt_poz,
+        "efk_buy":      round(efk_buy, 1)   if efk_buy is not None else None,
+        "son_roe":      round(son_roe, 1)   if son_roe is not None else None,
+        "metrik":       metrik,
+        "renk":         renk,
+    }
+    return asama, label, emoji, aciklama, detaylar
+
+
 def roe_donus_hesapla(quarters, donems, kod):
     """
     ROE negatiften pozitife donus sinyali.
